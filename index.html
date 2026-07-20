@@ -132,7 +132,7 @@
     <script>
         async function actualizarMetricas() {
             try {
-                const response = await fetch("http://127.0.0.1:8000/api/profesionales");
+                const response = await fetch("https://bolsa-fisioterapia-ues.onrender.com/api/profesionales");
                 const lista = await response.json();
                 
                 const total = lista.length;
