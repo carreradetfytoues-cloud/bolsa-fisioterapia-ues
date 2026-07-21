@@ -22,60 +22,49 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# 2. CONFIGURACIÓN DE CORREO SMTP (GMAIL INTEGRADO)
+# 2. CONFIGURACIÓN SMTP
 SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER", "carreradetfytoues@gmail.com")
-SMTP_PASSWORD = os.getenv(
-    "SMTP_PASSWORD", "hrcneosqwhlkvxpa"
-)  # Tu contraseña de aplicación
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "hrcneosqwhlkvxpa")
 
 
-def enviar_correo_activacion(correo_destino: str, codigo: str) -> bool:
+def enviar_correo(correo_destino: str, codigo: str):
     try:
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = f"Código de Activación UES: {codigo}"
+        msg["Subject"] = f"Bienvenido a la Bolsa de Trabajo UES"
         msg["From"] = f"Bolsa de Trabajo UES <{SMTP_USER}>"
         msg["To"] = correo_destino
 
-        html_content = f"""
+        html = f"""
         <html>
         <body style="font-family: Arial, sans-serif; color: #1e293b; padding: 20px;">
             <div style="max-width: 500px; margin: auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;">
-                <h2 style="color: #4f46e5; margin-bottom: 4px;">Universidad de El Salvador</h2>
-                <p style="color: #64748b; font-size: 13px; margin-top: 0;">Plataforma Oficial de Fisioterapia y Terapia Ocupacional</p>
-                <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 16px 0;">
-                <p style="font-size: 15px;">Tu código de verificación para activar tu cuenta es:</p>
-                <div style="background: #f1f5f9; text-align: center; padding: 16px; border-radius: 8px; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #4f46e5; margin: 16px 0;">
-                    {codigo}
-                </div>
-                <p style="font-size: 12px; color: #94a3b8;">Si no solicitaste este código, puedes ignorar este mensaje.</p>
+                <h2 style="color: #4f46e5;">Universidad de El Salvador</h2>
+                <p>Tu cuenta ha sido creada exitosamente en la Plataforma de Fisioterapia y Terapia Ocupacional.</p>
+                <p>Código de registro: <strong>{codigo}</strong></p>
             </div>
         </body>
         </html>
         """
-        msg.attach(MIMEText(html_content, "html"))
-
+        msg.attach(MIMEText(html, "html"))
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
         server.starttls()
         server.login(SMTP_USER, SMTP_PASSWORD)
         server.sendmail(SMTP_USER, correo_destino, msg.as_string())
         server.close()
-        print(f"✅ Correo enviado exitosamente a {correo_destino}")
-        return True
     except Exception as e:
-        print(f"❌ Error al enviar correo SMTP: {e}")
-        return False
+        print(f"Error SMTP: {e}")
 
 
-# 3. MODELOS SQLALCHEMY
+# 3. MODELOS
 class UsuarioDB(Base):
     __tablename__ = "usuarios"
     id = Column(Integer, primary_key=True, index=True)
     correo = Column(String, unique=True, index=True)
     password_hash = Column(String)
     codigo_activacion = Column(String)
-    verificado = Column(Boolean, default=True)  # Por defecto activados
+    verificado = Column(Boolean, default=True)
     token = Column(String, nullable=True)
 
     profesional = relationship(
@@ -110,15 +99,12 @@ Base.metadata.create_all(bind=engine)
 
 
 def es_registro_completo(p: ProfesionalDB) -> bool:
-    """Verifica si un graduado ya llenó su perfil de forma completa."""
-    tiene_nombre = bool(p.nombre and p.nombre.strip() != "")
-    tiene_profesion = bool(
-        (p.profesion and p.profesion.strip() != "")
-        or (p.carrera and p.carrera.strip() != "")
+    return bool(
+        p.nombre
+        and p.nombre.strip() != ""
+        and p.experiencia
+        and p.experiencia.strip() != ""
     )
-    tiene_depto = bool(p.departamento and p.departamento.strip() != "")
-    tiene_exp = bool(p.experiencia and p.experiencia.strip() != "")
-    return tiene_nombre and tiene_profesion and tiene_depto and tiene_exp
 
 
 # 4. APP FASTAPI
@@ -131,21 +117,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.on_event("startup")
-def Limpiar_cuentas_bloqueadas():
-    """Al encender el servidor, auto-verifica todas las cuentas existentes para desbloquearlas."""
-    db = SessionLocal()
-    try:
-        usuarios = db.query(UsuarioDB).all()
-        for u in usuarios:
-            u.verificado = True
-        db.commit()
-    except Exception as e:
-        print(f"Error en startup: {e}")
-    finally:
-        db.close()
 
 
 def hash_password(password: str) -> str:
@@ -180,7 +151,7 @@ class ProfesionalEsquema(BaseModel):
     experiencia: Optional[str] = ""
 
 
-# 5. RUTAS DE AUTENTICACIÓN
+# 5. RUTAS
 @app.post("/api/auth/registrar")
 def registrar(datos: RegistroAuth):
     db = SessionLocal()
@@ -191,7 +162,7 @@ def registrar(datos: RegistroAuth):
         if user_exist:
             raise HTTPException(
                 status_code=400,
-                detail="El correo ya existe. Ve a 'Iniciar Sesión'.",
+                detail="Este correo ya existe. Ve a 'Iniciar Sesión'.",
             )
 
         codigo_nuevo = str(random.randint(100000, 999999))
@@ -201,11 +172,10 @@ def registrar(datos: RegistroAuth):
             correo=datos.correo,
             password_hash=pwd_h,
             codigo_activacion=codigo_nuevo,
-            verificado=True,  # Se crea verificado de una vez
+            verificado=True,
         )
         db.add(nuevo_usuario)
         db.commit()
-        db.refresh(nuevo_usuario)
 
         nuevo_prof = ProfesionalDB(
             usuario_id=nuevo_usuario.id, correo=datos.correo
@@ -213,8 +183,7 @@ def registrar(datos: RegistroAuth):
         db.add(nuevo_prof)
         db.commit()
 
-        # Enviar correo de bienvenida/confirmación
-        enviar_correo_activacion(datos.correo, codigo_nuevo)
+        enviar_correo(datos.correo, codigo_nuevo)
 
         return {
             "status": "ok",
@@ -243,11 +212,9 @@ def login(datos: RegistroAuth):
                 status_code=400, detail="Correo o contraseña incorrectos."
             )
 
-        # Garantizar que el usuario quede verificado
-        user.verificado = True
-
         token = secrets.token_hex(16)
         user.token = token
+        user.verificado = True
         db.commit()
 
         prof = (
@@ -268,18 +235,9 @@ def login(datos: RegistroAuth):
 
 @app.post("/api/auth/activar")
 def activar(datos: ActivarAuth):
-    db = SessionLocal()
-    try:
-        user = db.query(UsuarioDB).filter(UsuarioDB.correo == datos.correo).first()
-        if user:
-            user.verificado = True
-            db.commit()
-        return {"status": "ok", "mensaje": "Cuenta activada correctamente."}
-    finally:
-        db.close()
+    return {"status": "ok", "mensaje": "Cuenta activada."}
 
 
-# 6. RUTAS DE PERFIL Y DIRECTORIO
 @app.get("/api/profesionales/me")
 def obtener_mi_perfil(authorization: Optional[str] = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
@@ -290,7 +248,6 @@ def obtener_mi_perfil(authorization: Optional[str] = Header(None)):
         user = db.query(UsuarioDB).filter(UsuarioDB.token == token).first()
         if not user:
             raise HTTPException(status_code=401, detail="No autorizado.")
-
         prof = (
             db.query(ProfesionalDB)
             .filter(ProfesionalDB.usuario_id == user.id)
@@ -340,7 +297,6 @@ def listar_profesionales():
     db = SessionLocal()
     try:
         todos = db.query(ProfesionalDB).all()
-        completos = [p for p in todos if es_registro_completo(p)]
-        return completos
+        return [p for p in todos if es_registro_completo(p)]
     finally:
         db.close()
