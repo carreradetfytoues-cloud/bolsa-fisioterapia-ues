@@ -220,7 +220,7 @@
                     </div>
 
                     <div class="pt-2 space-y-3">
-                        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition duration-200">
+                        <button type="submit" id="btnGuardarDatos" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition duration-200">
                             🔄 Actualizar mis Datos
                         </button>
                         
@@ -368,19 +368,19 @@
 
     <script>
         const API_URL = "https://bolsa-fisioterapia-ues.onrender.com/api";
-        let listaGlobalProfesionales = [];
         let authMode = 'login'; 
         let correoPendienteActivacion = "";
 
-        // RECUPERAR SESIÓN DESDE LOCALSTORAGE AL CARGAR
         let userToken = localStorage.getItem('ues_token');
         let userProfileId = localStorage.getItem('ues_profesional_id');
         let userCorreo = localStorage.getItem('ues_correo');
 
         document.addEventListener('DOMContentLoaded', () => {
-            if (userToken) {
+            if (userToken && userToken !== 'undefined' && userToken !== 'null') {
                 mostrarEstadoSesion(userCorreo);
                 cargarPerfilPropio();
+            } else {
+                cerrarSesionLocal();
             }
         });
 
@@ -433,14 +433,13 @@
                     correoPendienteActivacion = correo;
                     abrirModalActivacion();
                 } else {
-                    // GUARDAR TOKEN E ID DE PERFIL PERMANENTEMENTE
                     userToken = data.access_token || data.token || data.jwt;
                     userProfileId = data.profesional_id || data.id || data.user_id;
                     userCorreo = correo;
 
-                    localStorage.setItem('ues_token', userToken);
+                    if (userToken) localStorage.setItem('ues_token', userToken);
                     if (userProfileId) localStorage.setItem('ues_profesional_id', userProfileId);
-                    localStorage.setItem('ues_correo', correo);
+                    if (correo) localStorage.setItem('ues_correo', correo);
                     
                     mostrarEstadoSesion(correo);
                     await cargarPerfilPropio();
@@ -462,12 +461,20 @@
             document.getElementById('formTitle').textContent = "Modificar mis Datos Profesionales";
         }
 
+        function cerrarSesionLocal() {
+            localStorage.removeItem('ues_token');
+            localStorage.removeItem('ues_profesional_id');
+            localStorage.removeItem('ues_correo');
+            userToken = null;
+            userProfileId = null;
+            userCorreo = null;
+        }
+
         function cerrarSesion() {
-            localStorage.clear();
+            cerrarSesionLocal();
             location.reload();
         }
 
-        // CARGAR LOS DATOS ACTUALES DEL USUARIO EN EL FORMULARIO
         async function cargarPerfilPropio() {
             if (!userToken) return;
 
@@ -503,20 +510,20 @@
             }
         }
 
-        // ACTUALIZAR DATOS CON AUTENTICACIÓN SEGURA
         async function actualizarMisDatos(e) {
             e.preventDefault();
 
-            if (!userToken) {
-                alert("Tu sesión ha caducado. Por favor, vuelve a iniciar sesión con tu correo y contraseña.");
+            if (!userToken || userToken === 'undefined' || userToken === 'null') {
+                alert("Tu sesión no es válida. Por favor, haz clic en Cerrar Sesión e ingresa tu correo y contraseña nuevamente.");
                 cerrarSesion();
                 return;
             }
 
-            const targetUrl = userProfileId 
+            const tieneIdValido = userProfileId && userProfileId !== 'undefined' && userProfileId !== 'null';
+            const targetUrl = tieneIdValido 
                 ? `${API_URL}/profesionales/${userProfileId}` 
                 : `${API_URL}/profesionales`;
-            const targetMethod = userProfileId ? 'PUT' : 'POST';
+            const targetMethod = tieneIdValido ? 'PUT' : 'POST';
 
             const anioGradVal = parseInt(document.getElementById('anioGraduacion').value) || null;
 
@@ -536,6 +543,10 @@
                 experiencia: document.getElementById('experiencia').value
             };
 
+            const btn = document.getElementById('btnGuardarDatos');
+            btn.disabled = true;
+            btn.textContent = "Guardando...";
+
             try {
                 const response = await fetch(targetUrl, {
                     method: targetMethod,
@@ -547,7 +558,7 @@
                 });
 
                 if (response.status === 401) {
-                    alert("Tu clave de sesión venció. Por favor vuelve a Iniciar Sesión para renovar tu acceso.");
+                    alert("Tu clave de sesión ha vencido. Vuelve a iniciar sesión para actualizar tus datos.");
                     cerrarSesion();
                     return;
                 }
@@ -569,6 +580,9 @@
 
             } catch (err) {
                 alert("Error de conexión al servidor.");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "🔄 Actualizar mis Datos";
             }
         }
 
@@ -582,7 +596,6 @@
             }
         }
 
-        // ACTIVACIÓN DE CÓDIGO
         function abrirModalActivacion() {
             document.getElementById('correoActivacionTexto').textContent = correoPendienteActivacion;
             document.getElementById('modalActivarCuenta').classList.remove('hidden');
