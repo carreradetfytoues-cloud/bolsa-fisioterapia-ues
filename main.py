@@ -22,6 +22,7 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+
 # 2. CONFIGURACIÓN DE CORREO SMTP
 SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
@@ -108,6 +109,22 @@ class ProfesionalDB(Base):
 
 Base.metadata.create_all(bind=engine)
 
+
+# 🛠️ VALIDACIÓN DE REGISTRO COMPLETO
+def es_registro_completo(p: ProfesionalDB) -> bool:
+    """Un registro solo se considera completo para el censo si el usuario ya
+    llenó sus datos obligatorios (Nombre, Profesión, Departamento y Experiencia)."""
+    tiene_nombre = bool(p.nombre and p.nombre.strip() != "")
+    tiene_profesion = bool(
+        (p.profesion and p.profesion.strip() != "")
+        or (p.carrera and p.carrera.strip() != "")
+    )
+    tiene_depto = bool(p.departamento and p.departamento.strip() != "")
+    tiene_exp = bool(p.experiencia and p.experiencia.strip() != "")
+
+    return tiene_nombre and tiene_profesion and tiene_depto and tiene_exp
+
+
 # 4. FASTAPI APP
 app = FastAPI()
 
@@ -169,7 +186,6 @@ def registrar(datos: RegistroAuth):
         codigo_nuevo = str(random.randint(100000, 999999))
         pwd_h = hash_password(datos.password)
 
-        # Si no hay clave SMTP configurada, se auto-verifica para no bloquear al usuario
         auto_verificar = True if not SMTP_PASSWORD else False
 
         nuevo_usuario = UsuarioDB(
@@ -223,7 +239,6 @@ def login(datos: RegistroAuth):
                 detail="Correo o contraseña incorrectos. Verifica tus datos.",
             )
 
-        # Auto-activación si no se ha configurado SMTP o para desbloquear cuentas de prueba
         if not user.verificado:
             if not SMTP_PASSWORD:
                 user.verificado = True
@@ -231,7 +246,7 @@ def login(datos: RegistroAuth):
             else:
                 raise HTTPException(
                     status_code=400,
-                    detail="El correo aún no está verificado. Ingresa el código que recibiste.",
+                    detail="El correo aún no está verificado.",
                 )
 
         token = secrets.token_hex(16)
@@ -337,8 +352,8 @@ def listar_profesionales():
     db = SessionLocal()
     try:
         todos = db.query(ProfesionalDB).all()
-        # Filtra solo los perfiles que SI tienen un nombre registrado
-        validos = [p for p in todos if p.nombre and p.nombre.strip() != ""]
-        return validos
+        # 🔒 FILTRO ESTRICTO: Solo se envían al frontend los registros que estén COMPLETOS
+        completos = [p for p in todos if es_registro_completo(p)]
+        return completos
     finally:
         db.close()
