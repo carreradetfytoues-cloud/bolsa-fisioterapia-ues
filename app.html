@@ -125,7 +125,7 @@
             <!-- FORMULARIO DE EDICIÓN DEL GRADUADO -->
             <section id="formSection" class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 opacity-40 pointer-events-none transition duration-300">
                 <h2 id="formTitle" class="text-base font-bold mb-4 text-gray-950">🔒 Inicia sesión para modificar tus datos</h2>
-                <form id="professionalForm" class="space-y-4">
+                <form id="professionalForm" class="space-y-4" onsubmit="actualizarMisDatos(event)">
                     <div>
                         <label class="block text-sm font-semibold text-gray-700">Nombre Completo</label>
                         <input type="text" id="nombre" required class="mt-1 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
@@ -450,6 +450,64 @@
                 }
             } catch (err) {
                 alert("Error de conexión al servidor.");
+            }
+        }
+
+        // FUNCIÓN PARA ACTUALIZAR DATOS SIN CERRAR SESIÓN
+        async function actualizarMisDatos(e) {
+            e.preventDefault(); // ¡Evita que la página se recargue!
+
+            if (!userToken || !userProfileId) {
+                alert("Debes iniciar sesión para actualizar tus datos.");
+                return;
+            }
+
+            const payload = {
+                nombre: document.getElementById('nombre').value,
+                universidad: document.getElementById('universidad').value,
+                profesion: document.getElementById('profesion').value,
+                departamento: document.getElementById('departamento').value,
+                telefono: document.getElementById('telefono').value,
+                correo: document.getElementById('correo').value,
+                estudios: document.getElementById('estudios').value,
+                anio_graduacion: parseInt(document.getElementById('anioGraduacion').value) || null,
+                labora: document.getElementById('labora').value === 'si',
+                empresa: document.getElementById('empresa').value,
+                cambio_laboral: document.getElementById('cambioLaboral').value === 'si',
+                experiencia: document.getElementById('experiencia').value
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/profesionales/${userProfileId}`, {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${userToken}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    alert(data.detail || "Error al actualizar la información.");
+                    return;
+                }
+
+                alert("¡Tus datos se han actualizado correctamente!");
+
+            } catch (err) {
+                alert("Ocurrió un error de conexión al intentar guardar los datos.");
+            }
+        }
+
+        function toggleEmpresa() {
+            const labora = document.getElementById('labora').value;
+            const wrapper = document.getElementById('wrapperEmpresa');
+            if (labora === 'si') {
+                wrapper.classList.remove('hidden');
+            } else {
+                wrapper.classList.add('hidden');
             }
         }
 
