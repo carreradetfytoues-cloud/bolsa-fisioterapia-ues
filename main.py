@@ -21,9 +21,9 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# 2. CONFIGURACIÓN DE CORREO VÍA API BREVO (PUERTO HTTPS 443 - SIN BLOQUEOS)
+# 2. CONFIGURACIÓN DE CORREO VÍA API BREVO
 BREVO_API_KEY = os.getenv("BREVO_API_KEY", "").strip()
-REMITENTE_CORREO = os.getenv("SMTP_USER", "carreradetfytoues@gmail.com").strip()
+REMITENTE_CORREO = "carreradetfytoues@gmail.com"
 
 
 def enviar_correo_activacion(correo_destino: str, codigo: str) -> bool:
@@ -79,10 +79,7 @@ def enviar_correo_activacion(correo_destino: str, codigo: str) -> bool:
                 )
                 return True
 
-        print(
-            f"⚠️ Brevo respondió con código {response.status}",
-            flush=True,
-        )
+        print(f"⚠️ Brevo respondió con código {response.status}", flush=True)
         return False
     except Exception as e:
         print(
@@ -234,10 +231,17 @@ def registrar(datos: RegistroAuth, background_tasks: BackgroundTasks):
         )
         codigo_nuevo = str(random.randint(100000, 999999))
 
+        # Define si la cuenta es Administrador
+        es_admin_user = (
+            correo_norm == "carreradetfytoues@gmail.com"
+            or (correo_norm.endswith("@ues.edu.sv") and "admin" in correo_norm)
+        )
+
         if user_exist:
             if not user_exist.verificado:
                 user_exist.codigo_activacion = codigo_nuevo
                 user_exist.password_hash = hash_password(pass_norm)
+                user_exist.es_admin = es_admin_user
                 db.commit()
                 background_tasks.add_task(
                     enviar_correo_activacion, correo_norm, codigo_nuevo
@@ -251,9 +255,6 @@ def registrar(datos: RegistroAuth, background_tasks: BackgroundTasks):
             )
 
         pwd_h = hash_password(pass_norm)
-        es_admin_user = (
-            correo_norm.endswith("@ues.edu.sv") and "admin" in correo_norm
-        )
 
         nuevo_usuario = UsuarioDB(
             correo=correo_norm,
@@ -335,6 +336,10 @@ def login(datos: RegistroAuth):
                 status_code=400,
                 detail="El correo aún no está verificado. Debes ingresar el código.",
             )
+
+        # 💡 Asignación automática de administrador al iniciar sesión
+        if correo_norm == "carreradetfytoues@gmail.com":
+            user.es_admin = True
 
         token = secrets.token_hex(16)
         user.token = token
