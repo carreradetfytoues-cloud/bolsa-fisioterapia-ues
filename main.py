@@ -216,7 +216,9 @@ def registrar(datos: RegistroAuth):
             )
 
         pwd_h = hash_password(datos.password)
-        es_admin_user = datos.correo.endswith("@ues.edu.sv") and "admin" in datos.correo
+        es_admin_user = (
+            datos.correo.endswith("@ues.edu.sv") and "admin" in datos.correo
+        )
 
         nuevo_usuario = UsuarioDB(
             correo=datos.correo,
@@ -343,28 +345,39 @@ def obtener_mi_perfil(authorization: Optional[str] = Header(None)):
         db.close()
 
 
-@app.put("/api/profesionales/{prof_id}")
-def actualizar_profesional(
-    prof_id: int,
-    datos: ProfesionalEsquema,
-    authorization: Optional[str] = Header(None),
+@app.put("/api/profesionales/me")
+@app.post("/api/profesionales/me")
+@app.post("/api/profesionales")
+def actualizar_mi_perfil(
+    datos: ProfesionalEsquema, authorization: Optional[str] = Header(None)
 ):
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="No autorizado.")
+        raise HTTPException(
+            status_code=401,
+            detail="Sesión expirada. Inicia sesión nuevamente.",
+        )
     token = authorization.split(" ")[1]
     db = SessionLocal()
     try:
         user = db.query(UsuarioDB).filter(UsuarioDB.token == token).first()
         if not user:
-            raise HTTPException(status_code=401, detail="No autorizado.")
+            raise HTTPException(
+                status_code=401,
+                detail="Sesión expirada. Inicia sesión nuevamente.",
+            )
 
         prof = (
-            db.query(ProfesionalDB).filter(ProfesionalDB.id == prof_id).first()
+            db.query(ProfesionalDB)
+            .filter(ProfesionalDB.usuario_id == user.id)
+            .first()
         )
         if not prof:
-            raise HTTPException(
-                status_code=404, detail="Perfil no encontrado."
+            prof = ProfesionalDB(
+                usuario_id=user.id, correo=user.correo
             )
+            db.add(prof)
+            db.commit()
+            db.refresh(prof)
 
         for key, value in datos.dict().items():
             if value is not None and hasattr(prof, key):
@@ -375,6 +388,15 @@ def actualizar_profesional(
         return prof
     finally:
         db.close()
+
+
+@app.put("/api/profesionales/{prof_id}")
+def actualizar_profesional_por_id(
+    prof_id: int,
+    datos: ProfesionalEsquema,
+    authorization: Optional[str] = Header(None),
+):
+    return actualizar_mi_perfil(datos, authorization)
 
 
 @app.delete("/api/profesionales/me")

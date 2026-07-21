@@ -220,7 +220,7 @@
                     </div>
 
                     <div class="pt-2 space-y-3">
-                        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition duration-200">
+                        <button type="submit" id="btnGuardarDatos" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition duration-200">
                             🔄 Actualizar mis Datos
                         </button>
                         
@@ -578,7 +578,7 @@
                             <div>
                                 <h3 class="font-bold text-gray-900 text-base flex items-center gap-1.5">
                                     ${p.nombre}
-                                    ${p.verificado_ues ? '<span title="Verificado UES" class="text-blue-500 text-sm">b®</span>' : ''}
+                                    ${p.verificado_ues ? '<span title="Verificado UES" class="text-blue-500 text-sm">®</span>' : ''}
                                 </h3>
                                 <p class="text-xs text-gray-500 mt-0.5">
                                     📍 <strong>${p.departamento || 'El Salvador'}</strong> | 🎓 ${p.universidad || 'UES'}
@@ -748,10 +748,18 @@
 
         async function actualizarMisDatos(e) {
             e.preventDefault();
-            if (!userToken) return alert("Inicia sesión nuevamente.");
+            if (!userToken) {
+                alert("Tu sesión ha expirado. Inicia sesión nuevamente.");
+                cerrarSesion();
+                return;
+            }
 
-            const targetUrl = userProfileId ? `${API_URL}/${userProfileId}` : API_URL;
-            const targetMethod = userProfileId ? 'PUT' : 'POST';
+            const btn = document.getElementById('btnGuardarDatos');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = "Guardando...";
+            }
+
             const anioGradVal = parseInt(document.getElementById('anioGraduacion').value) || null;
 
             const payload = {
@@ -773,19 +781,30 @@
             };
 
             try {
-                const res = await fetch(targetUrl, {
-                    method: targetMethod,
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userToken}` },
+                const res = await fetch(`${BASE_HOST}/api/profesionales/me`, {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'Authorization': `Bearer ${userToken}` 
+                    },
                     body: JSON.stringify(payload)
                 });
+
+                const data = await res.json();
+
                 if (res.ok) {
                     alert("¡Tus datos profesionales se han actualizado exitosamente!");
                     await cargarDirectorio();
                 } else {
-                    alert("Error al actualizar datos.");
+                    alert(data.detail || "Error al actualizar datos.");
                 }
             } catch (err) {
-                alert("Error de conexión.");
+                alert("Error de conexión al servidor.");
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = "🔄 Actualizar mis Datos";
+                }
             }
         }
 
