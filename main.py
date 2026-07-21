@@ -22,21 +22,16 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-
-# 2. CONFIGURACIÓN DE CORREO SMTP
+# 2. CONFIGURACIÓN DE CORREO SMTP (GMAIL INTEGRADO)
 SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER", "carreradetfytoues@gmail.com")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_PASSWORD = os.getenv(
+    "SMTP_PASSWORD", "hrcneosqwhlkvxpa"
+)  # Tu contraseña de aplicación
 
 
 def enviar_correo_activacion(correo_destino: str, codigo: str) -> bool:
-    if not SMTP_PASSWORD:
-        print(
-            f"ℹ️ SMTP_PASSWORD no configurada. Código para {correo_destino}: {codigo}"
-        )
-        return False
-
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = f"Código de Activación UES: {codigo}"
@@ -47,11 +42,14 @@ def enviar_correo_activacion(correo_destino: str, codigo: str) -> bool:
         <html>
         <body style="font-family: Arial, sans-serif; color: #1e293b; padding: 20px;">
             <div style="max-width: 500px; margin: auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;">
-                <h2 style="color: #4f46e5;">Universidad de El Salvador</h2>
-                <p>Tu código de verificación para activar tu cuenta es:</p>
-                <div style="background: #f1f5f9; text-align: center; padding: 16px; border-radius: 8px; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #4f46e5;">
+                <h2 style="color: #4f46e5; margin-bottom: 4px;">Universidad de El Salvador</h2>
+                <p style="color: #64748b; font-size: 13px; margin-top: 0;">Plataforma Oficial de Fisioterapia y Terapia Ocupacional</p>
+                <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 16px 0;">
+                <p style="font-size: 15px;">Tu código de verificación para activar tu cuenta es:</p>
+                <div style="background: #f1f5f9; text-align: center; padding: 16px; border-radius: 8px; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #4f46e5; margin: 16px 0;">
                     {codigo}
                 </div>
+                <p style="font-size: 12px; color: #94a3b8;">Si no solicitaste este código, puedes ignorar este mensaje.</p>
             </div>
         </body>
         </html>
@@ -63,9 +61,10 @@ def enviar_correo_activacion(correo_destino: str, codigo: str) -> bool:
         server.login(SMTP_USER, SMTP_PASSWORD)
         server.sendmail(SMTP_USER, correo_destino, msg.as_string())
         server.close()
+        print(f"✅ Correo enviado exitosamente a {correo_destino}")
         return True
     except Exception as e:
-        print(f"❌ Error SMTP: {e}")
+        print(f"❌ Error al enviar correo SMTP: {e}")
         return False
 
 
@@ -76,7 +75,7 @@ class UsuarioDB(Base):
     correo = Column(String, unique=True, index=True)
     password_hash = Column(String)
     codigo_activacion = Column(String)
-    verificado = Column(Boolean, default=False)
+    verificado = Column(Boolean, default=True)  # Por defecto activados
     token = Column(String, nullable=True)
 
     profesional = relationship(
@@ -110,10 +109,8 @@ class ProfesionalDB(Base):
 Base.metadata.create_all(bind=engine)
 
 
-# 🛠️ VALIDACIÓN DE REGISTRO COMPLETO
 def es_registro_completo(p: ProfesionalDB) -> bool:
-    """Un registro solo se considera completo para el censo si el usuario ya
-    llenó sus datos obligatorios (Nombre, Profesión, Departamento y Experiencia)."""
+    """Verifica si un graduado ya llenó su perfil de forma completa."""
     tiene_nombre = bool(p.nombre and p.nombre.strip() != "")
     tiene_profesion = bool(
         (p.profesion and p.profesion.strip() != "")
@@ -121,11 +118,10 @@ def es_registro_completo(p: ProfesionalDB) -> bool:
     )
     tiene_depto = bool(p.departamento and p.departamento.strip() != "")
     tiene_exp = bool(p.experiencia and p.experiencia.strip() != "")
-
     return tiene_nombre and tiene_profesion and tiene_depto and tiene_exp
 
 
-# 4. FASTAPI APP
+# 4. APP FASTAPI
 app = FastAPI()
 
 app.add_middleware(
@@ -135,6 +131,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def Limpiar_cuentas_bloqueadas():
+    """Al encender el servidor, auto-verifica todas las cuentas existentes para desbloquearlas."""
+    db = SessionLocal()
+    try:
+        usuarios = db.query(UsuarioDB).all()
+        for u in usuarios:
+            u.verificado = True
+        db.commit()
+    except Exception as e:
+        print(f"Error en startup: {e}")
+    finally:
+        db.close()
 
 
 def hash_password(password: str) -> str:
@@ -180,19 +191,17 @@ def registrar(datos: RegistroAuth):
         if user_exist:
             raise HTTPException(
                 status_code=400,
-                detail="El correo ya está registrado. Ve a la pestaña 'Iniciar Sesión'.",
+                detail="El correo ya existe. Ve a 'Iniciar Sesión'.",
             )
 
         codigo_nuevo = str(random.randint(100000, 999999))
         pwd_h = hash_password(datos.password)
 
-        auto_verificar = True if not SMTP_PASSWORD else False
-
         nuevo_usuario = UsuarioDB(
             correo=datos.correo,
             password_hash=pwd_h,
             codigo_activacion=codigo_nuevo,
-            verificado=auto_verificar,
+            verificado=True,  # Se crea verificado de una vez
         )
         db.add(nuevo_usuario)
         db.commit()
@@ -204,17 +213,13 @@ def registrar(datos: RegistroAuth):
         db.add(nuevo_prof)
         db.commit()
 
-        if SMTP_PASSWORD:
-            enviar_correo_activacion(datos.correo, codigo_nuevo)
-            return {
-                "status": "ok",
-                "mensaje": "Revisa tu correo para el código de activación.",
-            }
-        else:
-            return {
-                "status": "ok",
-                "mensaje": "Cuenta creada con éxito. Ya puedes iniciar sesión.",
-            }
+        # Enviar correo de bienvenida/confirmación
+        enviar_correo_activacion(datos.correo, codigo_nuevo)
+
+        return {
+            "status": "ok",
+            "mensaje": "Cuenta creada con éxito. Ya puedes iniciar sesión.",
+        }
     finally:
         db.close()
 
@@ -235,19 +240,11 @@ def login(datos: RegistroAuth):
 
         if not user:
             raise HTTPException(
-                status_code=400,
-                detail="Correo o contraseña incorrectos. Verifica tus datos.",
+                status_code=400, detail="Correo o contraseña incorrectos."
             )
 
-        if not user.verificado:
-            if not SMTP_PASSWORD:
-                user.verificado = True
-                db.commit()
-            else:
-                raise HTTPException(
-                    status_code=400,
-                    detail="El correo aún no está verificado.",
-                )
+        # Garantizar que el usuario quede verificado
+        user.verificado = True
 
         token = secrets.token_hex(16)
         user.token = token
@@ -274,18 +271,9 @@ def activar(datos: ActivarAuth):
     db = SessionLocal()
     try:
         user = db.query(UsuarioDB).filter(UsuarioDB.correo == datos.correo).first()
-        if not user:
-            raise HTTPException(
-                status_code=400, detail="Usuario no encontrado."
-            )
-
-        if user.codigo_activacion != datos.codigo and datos.codigo != "123456":
-            raise HTTPException(
-                status_code=400, detail="Código de activación incorrecto."
-            )
-
-        user.verificado = True
-        db.commit()
+        if user:
+            user.verificado = True
+            db.commit()
         return {"status": "ok", "mensaje": "Cuenta activada correctamente."}
     finally:
         db.close()
@@ -352,7 +340,6 @@ def listar_profesionales():
     db = SessionLocal()
     try:
         todos = db.query(ProfesionalDB).all()
-        # 🔒 FILTRO ESTRICTO: Solo se envían al frontend los registros que estén COMPLETOS
         completos = [p for p in todos if es_registro_completo(p)]
         return completos
     finally:
