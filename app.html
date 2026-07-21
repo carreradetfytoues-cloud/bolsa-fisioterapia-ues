@@ -782,30 +782,37 @@
             document.getElementById('formEnviarOferta').reset();
         }
 
-        async function enviarOfertaLaboral(e) {
-            e.preventDefault();
-            const profId = document.getElementById('modalProfId').value;
-            const empresa = document.getElementById('ofertaEmpresa').value.trim();
-            const contacto = document.getElementById('ofertaContacto').value.trim();
-            const vacante = document.getElementById('ofertaVacante').value.trim();
-            const mensaje = document.getElementById('ofertaMensaje').value.trim();
+async function enviarOfertaLaboral(e) {
+    e.preventDefault();
+    const profId = document.getElementById('modalProfId').value;
+    const empresa = document.getElementById('ofertaEmpresa').value.trim();
+    const contacto = document.getElementById('ofertaContacto').value.trim();
+    const vacante = document.getElementById('ofertaVacante').value.trim();
+    const mensaje = document.getElementById('ofertaMensaje').value.trim();
 
-            try {
-                const res = await fetch(`${BASE_HOST}/api/ofertas`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ profesional_id: parseInt(profId), empresa, contacto, vacante, mensaje })
-                });
-                if (res.ok) {
-                    alert("🚀 Propuesta enviada con éxito.");
-                    cerrarModalOferta();
-                } else {
-                    alert("Error enviando oferta.");
-                }
-            } catch (err) {
-                alert("Error de conexión al enviar la propuesta.");
+    try {
+        const res = await fetch(`${BASE_HOST}/api/ofertas`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ profesional_id: parseInt(profId), empresa, contacto, vacante, mensaje })
+        });
+        
+        if (res.ok) {
+            alert("🚀 Propuesta enviada con éxito.");
+            cerrarModalOferta();
+            
+            // 🔄 ACTUALIZACIÓN EN TIEMPO REAL
+            cargarMisOfertas();
+            if (esAdmin) {
+                cargarAdminOfertas();
             }
+        } else {
+            alert("Error enviando oferta.");
         }
+    } catch (err) {
+        alert("Error de conexión al enviar la propuesta.");
+    }
+}
 
         // -----------------------------------------------------------
         // BANDEJA Y AVISOS
