@@ -406,61 +406,69 @@
             }
         }
 
-        async function procesarAuth(e) {
-            e.preventDefault();
-            
-            const btn = document.getElementById('authBtn');
-            const textoOriginal = authMode === 'login' ? "Entrar a mi Perfil" : "Registrar Nueva Cuenta";
+async function procesarAuth(e) {
+    e.preventDefault();
+    
+    const btn = document.getElementById('authBtn');
+    const textoOriginal = authMode === 'login' ? "Entrar a mi Perfil" : "Registrar Nueva Cuenta";
 
-            // Respuesta visual inmediata
-            btn.disabled = true;
-            btn.textContent = "⏳ Conectando con el servidor...";
+    // Feedback inmediato en la interfaz
+    btn.disabled = true;
+    btn.classList.add('opacity-75', 'cursor-not-allowed');
+    btn.innerHTML = `<span class="inline-flex items-center gap-2">
+        <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Procesando...
+    </span>`;
 
-            const correo = document.getElementById('authCorreo').value.trim().toLowerCase();
-            const password = document.getElementById('authPassword').value.trim();
-            const url = authMode === 'login' ? `${BASE_HOST}/api/auth/login` : `${BASE_HOST}/api/auth/registrar`;
-            
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ correo, password })
-                });
-                const data = await response.json();
-                
-                if (!response.ok) {
-                    if (data.detail && (data.detail.includes("aún no está verificado") || data.detail.includes("código"))) {
-                        correoPendienteActivacion = correo;
-                        abrirModalActivacion();
-                    } else {
-                        alert(data.detail || "Error en la operación");
-                    }
-                    return;
-                }
-                
-                if (authMode === 'registro') {
-                    correoPendienteActivacion = correo;
-                    abrirModalActivacion();
-                } else {
-                    userToken = data.token || data.access_token;
-                    userProfileId = data.profesional_id;
-                    esAdmin = !!data.es_admin;
-                    userCorreo = correo;
-
-                    localStorage.setItem('ues_token', userToken);
-                    if (userProfileId) localStorage.setItem('ues_profesional_id', userProfileId);
-                    localStorage.setItem('ues_es_admin', esAdmin);
-                    localStorage.setItem('ues_correo', correo);
-                    
-                    mostrarSesionIniciadaUI(correo, esAdmin);
-                }
-            } catch (err) {
-                alert("Error de conexión al servidor.");
-            } finally {
-                btn.disabled = false;
-                btn.textContent = textoOriginal;
+    const correo = document.getElementById('authCorreo').value.trim().toLowerCase();
+    const password = document.getElementById('authPassword').value.trim();
+    const url = authMode === 'login' ? `${BASE_HOST}/api/auth/login` : `${BASE_HOST}/api/auth/registrar`;
+    
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ correo, password })
+        });
+        const data = await response.json();
+        
+        if (!response.ok) {
+            if (data.detail && (data.detail.includes("aún no está verificado") || data.detail.includes("código"))) {
+                correoPendienteActivacion = correo;
+                abrirModalActivacion();
+            } else {
+                alert(data.detail || "Error en la operación");
             }
+            return;
         }
+        
+        if (authMode === 'registro') {
+            correoPendienteActivacion = correo;
+            abrirModalActivacion();
+        } else {
+            userToken = data.token || data.access_token;
+            userProfileId = data.profesional_id;
+            esAdmin = !!data.es_admin;
+            userCorreo = correo;
+
+            localStorage.setItem('ues_token', userToken);
+            if (userProfileId) localStorage.setItem('ues_profesional_id', userProfileId);
+            localStorage.setItem('ues_es_admin', esAdmin);
+            localStorage.setItem('ues_correo', correo);
+            
+            mostrarSesionIniciadaUI(correo, esAdmin);
+        }
+    } catch (err) {
+        alert("Error de conexión al servidor.");
+    } finally {
+        btn.disabled = false;
+        btn.classList.remove('opacity-75', 'cursor-not-allowed');
+        btn.textContent = textoOriginal;
+    }
+}
 
         async function mostrarSesionIniciadaUI(correo, adminFlag) {
             document.getElementById('authBox').innerHTML = `

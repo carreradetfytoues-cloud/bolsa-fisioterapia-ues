@@ -7,13 +7,13 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import List, Optional
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import BackgroundTasks, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, create_engine
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
-# 1. BASE DE DATOS (COMPATIBLE CON POSTGRESQL EN RENDER Y SQLITE LOCAL)
+# 1. BASE DE DATOS
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
@@ -55,7 +55,6 @@ def enviar_correo_activacion(correo_destino: str, codigo: str) -> bool:
         """
         msg.attach(MIMEText(html, "html"))
 
-        # Conexión SSL directa al puerto 465
         with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=15) as server:
             server.login(SMTP_USER, SMTP_PASSWORD)
             server.sendmail(SMTP_USER, correo_destino, msg.as_string())
@@ -139,7 +138,7 @@ def es_registro_completo(p: ProfesionalDB) -> bool:
     )
 
 
-# 4. FASTAPI APP & MIDDLEWARE
+# 4. FASTAPI APP
 app = FastAPI()
 
 app.add_middleware(
@@ -155,7 +154,6 @@ def hash_password(password: str) -> str:
     return hashlib.sha256(password.strip().encode()).hexdigest()
 
 
-# ESQUEMAS PYDANTIC
 class RegistroAuth(BaseModel):
     correo: str
     password: str
@@ -197,9 +195,9 @@ class ProfesionalEsquema(BaseModel):
     experiencia: Optional[str] = ""
 
 
-# 5. RUTAS AUTH
+# 5. RUTAS AUTH (CON TAREAS EN SEGUNDO PLANO / BACKGROUND TASKS)
 @app.post("/api/auth/registrar")
-def registrar(datos: RegistroAuth):
+def registrar(datos: RegistroAuth, background_tasks: BackgroundTasks):
     db = SessionLocal()
     try:
         correo_norm = datos.correo.strip().lower()
@@ -215,7 +213,10 @@ def registrar(datos: RegistroAuth):
                 user_exist.codigo_activacion = codigo_nuevo
                 user_exist.password_hash = hash_password(pass_norm)
                 db.commit()
-                enviar_correo_activacion(correo_norm, codigo_nuevo)
+                # Envío en segundo plano para respuesta instantánea
+                background_tasks.add_task(
+                    enviar_correo_activacion, correo_norm, codigo_nuevo
+                )
                 return {
                     "status": "ok",
                     "mensaje": "Se reenvió el código a tu correo.",
@@ -245,7 +246,10 @@ def registrar(datos: RegistroAuth):
         db.add(nuevo_prof)
         db.commit()
 
-        enviar_correo_activacion(correo_norm, codigo_nuevo)
+        # Envío en segundo plano para respuesta instantánea
+        background_tasks.add_task(
+            enviar_correo_activacion, correo_norm, codigo_nuevo
+        )
 
         return {
             "status": "ok",
