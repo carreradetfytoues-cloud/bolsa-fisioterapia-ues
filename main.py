@@ -148,7 +148,7 @@ app.add_middleware(
 
 
 def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
+    return hashlib.sha256(password.strip().encode()).hexdigest()
 
 
 class RegistroAuth(BaseModel):
@@ -192,21 +192,25 @@ class ProfesionalEsquema(BaseModel):
     experiencia: Optional[str] = ""
 
 
-# 5. RUTAS AUTH
+# 5. RUTAS AUTH CON NORMALIZACIÓN ESTRICTA
 @app.post("/api/auth/registrar")
 def registrar(datos: RegistroAuth):
     db = SessionLocal()
     try:
+        correo_norm = datos.correo.strip().lower()
+        pass_norm = datos.password.strip()
+
         user_exist = (
-            db.query(UsuarioDB).filter(UsuarioDB.correo == datos.correo).first()
+            db.query(UsuarioDB).filter(UsuarioDB.correo == correo_norm).first()
         )
         codigo_nuevo = str(random.randint(100000, 999999))
 
         if user_exist:
             if not user_exist.verificado:
                 user_exist.codigo_activacion = codigo_nuevo
+                user_exist.password_hash = hash_password(pass_norm)
                 db.commit()
-                enviar_correo_activacion(datos.correo, codigo_nuevo)
+                enviar_correo_activacion(correo_norm, codigo_nuevo)
                 return {
                     "status": "ok",
                     "mensaje": "Se reenvió el código a tu correo.",
@@ -215,13 +219,13 @@ def registrar(datos: RegistroAuth):
                 status_code=400, detail="El correo ya se encuentra registrado."
             )
 
-        pwd_h = hash_password(datos.password)
+        pwd_h = hash_password(pass_norm)
         es_admin_user = (
-            datos.correo.endswith("@ues.edu.sv") and "admin" in datos.correo
+            correo_norm.endswith("@ues.edu.sv") and "admin" in correo_norm
         )
 
         nuevo_usuario = UsuarioDB(
-            correo=datos.correo,
+            correo=correo_norm,
             password_hash=pwd_h,
             codigo_activacion=codigo_nuevo,
             verificado=False,
@@ -231,12 +235,12 @@ def registrar(datos: RegistroAuth):
         db.commit()
 
         nuevo_prof = ProfesionalDB(
-            usuario_id=nuevo_usuario.id, correo=datos.correo
+            usuario_id=nuevo_usuario.id, correo=correo_norm
         )
         db.add(nuevo_prof)
         db.commit()
 
-        enviar_correo_activacion(datos.correo, codigo_nuevo)
+        enviar_correo_activacion(correo_norm, codigo_nuevo)
 
         return {
             "status": "ok",
@@ -250,13 +254,16 @@ def registrar(datos: RegistroAuth):
 def activar(datos: ActivarAuth):
     db = SessionLocal()
     try:
-        user = db.query(UsuarioDB).filter(UsuarioDB.correo == datos.correo).first()
+        correo_norm = datos.correo.strip().lower()
+        codigo_norm = datos.codigo.strip()
+
+        user = db.query(UsuarioDB).filter(UsuarioDB.correo == correo_norm).first()
         if not user:
             raise HTTPException(
                 status_code=400, detail="Usuario no encontrado."
             )
 
-        if user.codigo_activacion != datos.codigo and datos.codigo != "123456":
+        if user.codigo_activacion != codigo_norm and codigo_norm != "123456":
             raise HTTPException(
                 status_code=400, detail="El código ingresado es incorrecto."
             )
@@ -272,11 +279,14 @@ def activar(datos: ActivarAuth):
 def login(datos: RegistroAuth):
     db = SessionLocal()
     try:
-        pwd_h = hash_password(datos.password)
+        correo_norm = datos.correo.strip().lower()
+        pass_norm = datos.password.strip()
+        pwd_h = hash_password(pass_norm)
+
         user = (
             db.query(UsuarioDB)
             .filter(
-                UsuarioDB.correo == datos.correo,
+                UsuarioDB.correo == correo_norm,
                 UsuarioDB.password_hash == pwd_h,
             )
             .first()
@@ -372,9 +382,7 @@ def actualizar_mi_perfil(
             .first()
         )
         if not prof:
-            prof = ProfesionalDB(
-                usuario_id=user.id, correo=user.correo
-            )
+            prof = ProfesionalDB(usuario_id=user.id, correo=user.correo)
             db.add(prof)
             db.commit()
             db.refresh(prof)

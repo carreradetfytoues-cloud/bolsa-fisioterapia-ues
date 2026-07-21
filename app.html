@@ -408,8 +408,9 @@
 
         async function procesarAuth(e) {
             e.preventDefault();
-            const correo = document.getElementById('authCorreo').value;
-            const password = document.getElementById('authPassword').value;
+            // Normalización estricta de correo y contraseña
+            const correo = document.getElementById('authCorreo').value.trim().toLowerCase();
+            const password = document.getElementById('authPassword').value.trim();
             const url = authMode === 'login' ? `${BASE_HOST}/api/auth/login` : `${BASE_HOST}/api/auth/registrar`;
             
             try {
@@ -491,7 +492,7 @@
 
         async function confirmarActivacionCodigo(e) {
             e.preventDefault();
-            const codigo = document.getElementById('codigoActivacionInput').value;
+            const codigo = document.getElementById('codigoActivacionInput').value.trim();
 
             try {
                 const res = await fetch(`${BASE_HOST}/api/auth/activar`, {
