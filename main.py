@@ -192,7 +192,7 @@ class ProfesionalEsquema(BaseModel):
     experiencia: Optional[str] = ""
 
 
-# 5. RUTAS AUTH CON NORMALIZACIÓN ESTRICTA
+# 5. RUTAS AUTH
 @app.post("/api/auth/registrar")
 def registrar(datos: RegistroAuth):
     db = SessionLocal()
@@ -535,7 +535,47 @@ def admin_crear_anuncio(
 def admin_listar_usuarios(authorization: Optional[str] = Header(None)):
     db = SessionLocal()
     try:
-        return db.query(UsuarioDB).all()
+        usuarios = db.query(UsuarioDB).all()
+        res = []
+        for u in usuarios:
+            prof = (
+                db.query(ProfesionalDB)
+                .filter(ProfesionalDB.usuario_id == u.id)
+                .first()
+            )
+            res.append(
+                {
+                    "id": u.id,
+                    "correo": u.correo,
+                    "verificado": u.verificado,
+                    "es_admin": u.es_admin,
+                    "verificado_ues": prof.verificado_ues if prof else False,
+                }
+            )
+        return res
+    finally:
+        db.close()
+
+
+@app.put("/api/admin/usuarios/{user_id}/verificar")
+def admin_toggle_verificar(
+    user_id: int, authorization: Optional[str] = Header(None)
+):
+    db = SessionLocal()
+    try:
+        prof = (
+            db.query(ProfesionalDB)
+            .filter(ProfesionalDB.usuario_id == user_id)
+            .first()
+        )
+        if not prof:
+            raise HTTPException(
+                status_code=404, detail="Perfil profesional no encontrado."
+            )
+
+        prof.verificado_ues = not prof.verificado_ues
+        db.commit()
+        return {"status": "ok", "verificado_ues": prof.verificado_ues}
     finally:
         db.close()
 

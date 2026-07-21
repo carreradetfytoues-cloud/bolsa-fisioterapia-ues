@@ -408,7 +408,6 @@
 
         async function procesarAuth(e) {
             e.preventDefault();
-            // Normalización estricta de correo y contraseña
             const correo = document.getElementById('authCorreo').value.trim().toLowerCase();
             const password = document.getElementById('authPassword').value.trim();
             const url = authMode === 'login' ? `${BASE_HOST}/api/auth/login` : `${BASE_HOST}/api/auth/registrar`;
@@ -579,7 +578,7 @@
                             <div>
                                 <h3 class="font-bold text-gray-900 text-base flex items-center gap-1.5">
                                     ${p.nombre}
-                                    ${p.verificado_ues ? '<span title="Verificado UES" class="text-blue-500 text-sm">®</span>' : ''}
+                                    ${p.verificado_ues ? '<span title="Verificado UES" class="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">✓ Verificado UES</span>' : ''}
                                 </h3>
                                 <p class="text-xs text-gray-500 mt-0.5">
                                     📍 <strong>${p.departamento || 'El Salvador'}</strong> | 🎓 ${p.universidad || 'UES'}
@@ -910,17 +909,40 @@
                     document.getElementById('adminUsuariosContainer').innerHTML = usuarios.map(u => `
                         <div class="bg-slate-800 p-2.5 rounded-lg flex justify-between items-center text-xs border border-slate-700">
                             <div>
-                                <p class="font-bold text-white">${u.correo}</p>
-                                <span class="text-[10px] text-slate-400">${u.verificado ? '✓ Activado' : '⏳ Pendiente'}</span>
+                                <p class="font-bold text-white flex items-center gap-1.5">
+                                    ${u.correo}
+                                    ${u.verificado_ues ? '<span class="bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">✓ Verificado UES</span>' : ''}
+                                </p>
+                                <span class="text-[10px] text-slate-400">${u.verificado ? '✓ Cuenta Activada' : '⏳ Pendiente'}</span>
                             </div>
-                            <div class="flex gap-1">
-                                <button onclick="eliminarUsuarioAdmin(${u.id})" class="bg-red-600 hover:bg-red-700 text-white text-[10px] px-2 py-1 rounded">Eliminar</button>
+                            <div class="flex gap-1.5 items-center">
+                                <button onclick="toggleVerificarUsuarioAdmin(${u.id})" class="${u.verificado_ues ? 'bg-amber-600 hover:bg-amber-700' : 'bg-blue-600 hover:bg-blue-700'} text-white text-[10px] font-semibold px-2 py-1 rounded transition">
+                                    ${u.verificado_ues ? 'Quitar Sello' : '⭐ Verificado UES'}
+                                </button>
+                                <button onclick="eliminarUsuarioAdmin(${u.id})" class="bg-red-600 hover:bg-red-700 text-white text-[10px] font-semibold px-2 py-1 rounded transition">Eliminar</button>
                             </div>
                         </div>
                     `).join('');
                 }
             } catch (e) {
                 console.error(e);
+            }
+        }
+
+        async function toggleVerificarUsuarioAdmin(id) {
+            try {
+                const res = await fetch(`${BASE_HOST}/api/admin/usuarios/${id}/verificar`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${userToken}` }
+                });
+                if (res.ok) {
+                    await cargarUsuariosAdmin();
+                    await cargarDirectorio();
+                } else {
+                    alert("Error al cambiar estado de verificación.");
+                }
+            } catch (e) {
+                alert("Error de conexión.");
             }
         }
 
