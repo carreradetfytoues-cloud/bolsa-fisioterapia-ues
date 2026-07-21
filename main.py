@@ -22,21 +22,27 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# 2. CONFIGURACIÓN SMTP (GMAIL)
-SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+# 2. CONFIGURACIÓN SMTP (Tomada de las variables de Render)
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 465
 SMTP_USER = os.getenv("SMTP_USER", "carreradetfytoues@gmail.com")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "hrcneosqwhlkvxpa")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 
 
 def enviar_correo_activacion(correo_destino: str, codigo: str) -> bool:
+    if not SMTP_PASSWORD:
+        print(
+            f"⚠️ SMTP_PASSWORD no encontrada en Render. Código para {correo_destino}: {codigo}"
+        )
+        return False
+
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = f"Código de Activación UES: {codigo}"
         msg["From"] = f"Bolsa de Trabajo UES <{SMTP_USER}>"
         msg["To"] = correo_destino
 
-        html = f"""
+        html_content = f"""
         <html>
         <body style="font-family: Arial, sans-serif; color: #1e293b; padding: 20px;">
             <div style="max-width: 500px; margin: auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;">
@@ -47,25 +53,26 @@ def enviar_correo_activacion(correo_destino: str, codigo: str) -> bool:
                 <div style="background: #f1f5f9; text-align: center; padding: 16px; border-radius: 8px; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #4f46e5; margin: 16px 0;">
                     {codigo}
                 </div>
-                <p style="font-size: 12px; color: #94a3b8;">Ingresa este código en la plataforma para poder iniciar sesión.</p>
+                <p style="font-size: 12px; color: #94a3b8;">Ingresa este código en la plataforma para activar tu perfil.</p>
             </div>
         </body>
         </html>
         """
-        msg.attach(MIMEText(html, "html"))
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.starttls()
+        msg.attach(MIMEText(html_content, "html"))
+
+        # Conexión SSL segura directa (Puerto 465)
+        server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=10)
         server.login(SMTP_USER, SMTP_PASSWORD)
         server.sendmail(SMTP_USER, correo_destino, msg.as_string())
         server.close()
-        print(f"✅ Correo enviado a {correo_destino}")
+        print(f"✅ Correo enviado exitosamente a {correo_destino}")
         return True
     except Exception as e:
-        print(f"❌ Error enviando correo SMTP: {e}")
+        print(f"❌ Error al enviar correo SMTP: {e}")
         return False
 
 
-# 3. MODELOS
+# 3. MODELOS SQLALCHEMY
 class UsuarioDB(Base):
     __tablename__ = "usuarios"
     id = Column(Integer, primary_key=True, index=True)
@@ -115,7 +122,7 @@ def es_registro_completo(p: ProfesionalDB) -> bool:
     )
 
 
-# 4. FASTAPI APP
+# 4. APP FASTAPI
 app = FastAPI()
 
 app.add_middleware(
@@ -168,9 +175,19 @@ def registrar(datos: RegistroAuth):
             db.query(UsuarioDB).filter(UsuarioDB.correo == datos.correo).first()
         )
         if user_exist:
+            # Si el usuario ya existe pero no se ha verificado, reenviamos un nuevo código
+            if not user_exist.verificado:
+                codigo_nuevo = str(random.randint(100000, 999999))
+                user_exist.codigo_activacion = codigo_nuevo
+                db.commit()
+                enviar_correo_activacion(datos.correo, codigo_nuevo)
+                return {
+                    "status": "ok",
+                    "mensaje": "Se ha reenviado el código de verificación a tu correo.",
+                }
             raise HTTPException(
                 status_code=400,
-                detail="El correo ya se encuentra registrado. Inicia sesión o verifica tu código.",
+                detail="El correo ya existe. Ve a 'Iniciar Sesión'.",
             )
 
         codigo_nuevo = str(random.randint(100000, 999999))
@@ -180,7 +197,7 @@ def registrar(datos: RegistroAuth):
             correo=datos.correo,
             password_hash=pwd_h,
             codigo_activacion=codigo_nuevo,
-            verificado=False,  # OBLIGATORIO VERIFICAR
+            verificado=False,
         )
         db.add(nuevo_usuario)
         db.commit()
@@ -211,7 +228,7 @@ def activar(datos: ActivarAuth):
                 status_code=400, detail="Usuario no encontrado."
             )
 
-        # Permite el código generado o '123456' como comodín
+        # Compara con el código asignado o el comodín 123456
         if user.codigo_activacion != datos.codigo and datos.codigo != "123456":
             raise HTTPException(
                 status_code=400, detail="El código ingresado es incorrecto."
@@ -246,7 +263,7 @@ def login(datos: RegistroAuth):
         if not user.verificado:
             raise HTTPException(
                 status_code=400,
-                detail="El correo aún no está verificado. Debes activar tu cuenta con el código.",
+                detail="El correo aún no está verificado. Ingresa el código recibido.",
             )
 
         token = secrets.token_hex(16)
