@@ -457,7 +457,7 @@
             }
         }
 
-        // FUNCIÓN MEJORADA PARA ACTUALIZAR DATOS CON FORMATO DE ERRORES LIMPIO
+        // FUNCIÓN ACTUALIZADA CON LOS NOMBRES DE CAMPO EXACTOS
         async function actualizarMisDatos(e) {
             e.preventDefault();
 
@@ -466,20 +466,24 @@
                 return;
             }
 
-            // Si aún no hay ID de perfil asignado, enviamos petición POST para crearlo
             const targetUrl = userProfileId 
                 ? `${API_URL}/profesionales/${userProfileId}` 
                 : `${API_URL}/profesionales`;
             const targetMethod = userProfileId ? 'PUT' : 'POST';
 
+            const anioGradVal = parseInt(document.getElementById('anioGraduacion').value) || null;
+
+            // Mapeo exacto compatible con el esquema de FastAPI
             const payload = {
                 nombre: document.getElementById('nombre').value,
                 universidad: document.getElementById('universidad').value,
+                profesion: document.getElementById('profesion').value,
                 carrera: document.getElementById('profesion').value,
                 departamento: document.getElementById('departamento').value,
                 contacto: document.getElementById('telefono').value || document.getElementById('correo').value,
                 estudios: document.getElementById('estudios').value,
-                anio_graduacion: parseInt(document.getElementById('anioGraduacion').value) || null,
+                graduacion: anioGradVal,
+                anio_graduacion: anioGradVal,
                 labora: document.getElementById('labora').value === 'si',
                 empresa: document.getElementById('empresa').value,
                 cambio_laboral: document.getElementById('cambioLaboral').value === 'si',
