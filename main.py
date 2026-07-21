@@ -10,6 +10,10 @@ from email.mime.text import MIMEText
 from typing import List, Optional
 
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, create_engine
+from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
 # --------------------------------------------------------------------
 # 💡 PARCHE DE RED PARA RENDER (Forzar IPv4 y evitar [Errno 101])
@@ -26,7 +30,17 @@ def new_getaddrinfo(*args, **kwargs):
 socket.getaddrinfo = new_getaddrinfo
 # --------------------------------------------------------------------
 
-# 2. CONFIGURACIÓN SMTP (GMAIL OPTIMIZADA PARA RENDER)
+# 1. BASE DE DATOS (POSTGRESQL Y SQLITE)
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()  # <--- AQUÍ SE DEFINE 'Base'
+
+
+# 2. CONFIGURACIÓN SMTP (GMAIL CON SSL PUERTO 465)
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 465
 SMTP_USER = os.getenv("SMTP_USER", "carreradetfytoues@gmail.com").strip()
@@ -204,7 +218,7 @@ class ProfesionalEsquema(BaseModel):
     experiencia: Optional[str] = ""
 
 
-# 5. RUTAS AUTH (CON TAREAS EN SEGUNDO PLANO / BACKGROUND TASKS)
+# 5. RUTAS AUTH
 @app.post("/api/auth/registrar")
 def registrar(datos: RegistroAuth, background_tasks: BackgroundTasks):
     db = SessionLocal()
@@ -222,7 +236,6 @@ def registrar(datos: RegistroAuth, background_tasks: BackgroundTasks):
                 user_exist.codigo_activacion = codigo_nuevo
                 user_exist.password_hash = hash_password(pass_norm)
                 db.commit()
-                # Envío en segundo plano para respuesta instantánea
                 background_tasks.add_task(
                     enviar_correo_activacion, correo_norm, codigo_nuevo
                 )
@@ -255,7 +268,6 @@ def registrar(datos: RegistroAuth, background_tasks: BackgroundTasks):
         db.add(nuevo_prof)
         db.commit()
 
-        # Envío en segundo plano para respuesta instantánea
         background_tasks.add_task(
             enviar_correo_activacion, correo_norm, codigo_nuevo
         )
