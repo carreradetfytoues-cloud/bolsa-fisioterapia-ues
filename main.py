@@ -169,23 +169,27 @@ def registrar(datos: RegistroAuth):
         user_exist = (
             db.query(UsuarioDB).filter(UsuarioDB.correo == correo_norm).first()
         )
-
-        if user_exist:
-            raise HTTPException(
-                status_code=400, detail="El correo ya se encuentra registrado."
-            )
-
         pwd_h = hash_password(pass_norm)
         es_admin_user = (
             correo_norm.endswith("@ues.edu.sv") and "admin" in correo_norm
         )
 
-        # Se registra la cuenta directamente verificada
+        # Si el usuario ya existía de intentos anteriores, actualizamos su cuenta
+        if user_exist:
+            user_exist.password_hash = pwd_h
+            user_exist.verificado = True
+            db.commit()
+            return {
+                "status": "ok",
+                "mensaje": "¡Cuenta activada con éxito! Ya puedes iniciar sesión.",
+            }
+
+        # Si es un registro completamente nuevo:
         nuevo_usuario = UsuarioDB(
             correo=correo_norm,
             password_hash=pwd_h,
             codigo_activacion="123456",
-            verificado=True,  # <--- Activación instantánea
+            verificado=True,
             es_admin=es_admin_user,
         )
         db.add(nuevo_usuario)
