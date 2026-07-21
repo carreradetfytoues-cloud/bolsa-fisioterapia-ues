@@ -37,8 +37,8 @@
 
     <main class="container mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        <!-- COLUMNA IZQUIERDA -->
-        <div class="space-y-6">
+        <!-- COLUMNA IZQUIERDA (Graduados / Auth) -->
+        <div id="columnaIzquierda" class="space-y-6">
             <!-- TABLÓN DE ANUNCIOS INSTITUCIONALES -->
             <section id="anunciosSection" class="hidden bg-indigo-900 text-white p-5 rounded-xl shadow-md border border-indigo-800 space-y-3">
                 <div class="flex justify-between items-center border-b border-indigo-700 pb-2">
@@ -249,8 +249,8 @@
             </section>
         </div>
 
-        <!-- COLUMNA DERECHA -->
-        <section class="lg:col-span-2 space-y-6">
+        <!-- COLUMNA DERECHA (Directorio de Búsqueda) -->
+        <section id="columnaDerecha" class="lg:col-span-2 space-y-6">
             <!-- FILTROS -->
             <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 space-y-4">
                 <div class="flex items-center justify-between text-indigo-600">
@@ -338,7 +338,7 @@
                 </div>
             </div>
 
-            <!-- CONTENEDOR EN CUADRÍCULA DE 2 COLUMNAS -->
+            <!-- CONTENEDOR EN CUADRÍCULA -->
             <div id="directory" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
         </section>
     </main>
@@ -392,6 +392,21 @@
         let authMode = 'login'; 
 
         document.addEventListener('DOMContentLoaded', () => {
+            // DETECTAR MODO EMPRESAS VS GRADUADOS
+            const params = new URLSearchParams(window.location.search);
+            const modo = params.get('modo');
+
+            if (modo === 'empresas') {
+                // Ocultar columna izquierda y expandir directorio a pantalla completa
+                const colIzquierda = document.getElementById('columnaIzquierda');
+                const colDerecha = document.getElementById('columnaDerecha');
+                if (colIzquierda) colIzquierda.classList.add('hidden');
+                if (colDerecha) {
+                    colDerecha.classList.remove('lg:col-span-2');
+                    colDerecha.classList.add('lg:col-span-3');
+                }
+            }
+
             cargarDirectorio();
             cargarAnunciosPublicos();
 
@@ -503,28 +518,35 @@
         }
 
         async function mostrarSesionIniciadaUI(correo, adminFlag) {
-            document.getElementById('authBox').innerHTML = `
-                <div class="text-center py-2 space-y-3">
-                    <p class="text-sm ${adminFlag ? 'text-amber-500 font-bold' : 'text-green-600 font-bold'}">
-                        ${adminFlag ? '🛡️ Administrador UES Logueado' : '✓ Sesión Iniciada'}
-                    </p>
-                    <p class="text-xs text-gray-500 font-medium truncate">${correo}</p>
-                    <button onclick="cerrarSesion()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold py-2 rounded-lg transition">
-                        🚪 Cerrar Sesión
-                    </button>
-                </div>
-            `;
+            const authBox = document.getElementById('authBox');
+            if (authBox) {
+                authBox.innerHTML = `
+                    <div class="text-center py-2 space-y-3">
+                        <p class="text-sm ${adminFlag ? 'text-amber-500 font-bold' : 'text-green-600 font-bold'}">
+                            ${adminFlag ? '🛡️ Administrador UES Logueado' : '✓ Sesión Iniciada'}
+                        </p>
+                        <p class="text-xs text-gray-500 font-medium truncate">${correo}</p>
+                        <button onclick="cerrarSesion()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold py-2 rounded-lg transition">
+                            🚪 Cerrar Sesión
+                        </button>
+                    </div>
+                `;
+            }
 
-            // Habilitar Formulario
             const formSec = document.getElementById('formSection');
-            formSec.classList.remove('opacity-40', 'pointer-events-none');
-            document.getElementById('formTitle').textContent = "✏️ Edita tu Perfil Profesional";
+            if (formSec) {
+                formSec.classList.remove('opacity-40', 'pointer-events-none');
+                const title = document.getElementById('formTitle');
+                if (title) title.textContent = "✏️ Edita tu Perfil Profesional";
+            }
 
             if (adminFlag) {
-                document.getElementById('adminPanelSection').classList.remove('hidden');
+                const adminSec = document.getElementById('adminPanelSection');
+                if (adminSec) adminSec.classList.remove('hidden');
                 switchAdminTab('ofertas');
             } else {
-                document.getElementById('ofertasSection').classList.remove('hidden');
+                const ofertasSec = document.getElementById('ofertasSection');
+                if (ofertasSec) ofertasSec.classList.remove('hidden');
                 cargarMisOfertas();
             }
 
@@ -545,19 +567,19 @@
                 if (res.ok) {
                     const p = await res.json();
                     if (p) {
-                        document.getElementById('nombre').value = p.nombre || '';
-                        document.getElementById('universidad').value = p.universidad || 'Universidad de El Salvador';
-                        document.getElementById('profesion').value = p.profesion || p.carrera || 'Licenciado en Fisioterapia';
-                        document.getElementById('departamento').value = p.departamento || 'San Salvador';
-                        document.getElementById('telefono').value = p.telefono || p.contacto || '';
-                        document.getElementById('correo').value = p.correo || userCorreo;
-                        document.getElementById('estudios').value = p.estudios || '';
-                        document.getElementById('anioGraduacion').value = p.anio_graduacion || p.graduacion || '';
-                        document.getElementById('labora').value = p.labora ? 'si' : 'no';
+                        if (document.getElementById('nombre')) document.getElementById('nombre').value = p.nombre || '';
+                        if (document.getElementById('universidad')) document.getElementById('universidad').value = p.universidad || 'Universidad de El Salvador';
+                        if (document.getElementById('profesion')) document.getElementById('profesion').value = p.profesion || p.carrera || 'Licenciado en Fisioterapia';
+                        if (document.getElementById('departamento')) document.getElementById('departamento').value = p.departamento || 'San Salvador';
+                        if (document.getElementById('telefono')) document.getElementById('telefono').value = p.telefono || p.contacto || '';
+                        if (document.getElementById('correo')) document.getElementById('correo').value = p.correo || userCorreo;
+                        if (document.getElementById('estudios')) document.getElementById('estudios').value = p.estudios || '';
+                        if (document.getElementById('anioGraduacion')) document.getElementById('anioGraduacion').value = p.anio_graduacion || p.graduacion || '';
+                        if (document.getElementById('labora')) document.getElementById('labora').value = p.labora ? 'si' : 'no';
                         toggleEmpresa();
-                        document.getElementById('empresa').value = p.empresa || '';
-                        document.getElementById('cambioLaboral').value = p.cambio_laboral ? 'si' : 'no';
-                        document.getElementById('experiencia').value = p.experiencia || '';
+                        if (document.getElementById('empresa')) document.getElementById('empresa').value = p.empresa || '';
+                        if (document.getElementById('cambioLaboral')) document.getElementById('cambioLaboral').value = p.cambio_laboral ? 'si' : 'no';
+                        if (document.getElementById('experiencia')) document.getElementById('experiencia').value = p.experiencia || '';
                     }
                 }
             } catch (err) {
@@ -643,10 +665,14 @@
         }
 
         function toggleEmpresa() {
-            const val = document.getElementById('labora').value;
+            const el = document.getElementById('labora');
+            if (!el) return;
+            const val = el.value;
             const w = document.getElementById('wrapperEmpresa');
-            if (val === 'si') w.classList.remove('hidden');
-            else w.classList.add('hidden');
+            if (w) {
+                if (val === 'si') w.classList.remove('hidden');
+                else w.classList.add('hidden');
+            }
         }
 
         // -----------------------------------------------------------
@@ -893,9 +919,12 @@
                     });
                 }
 
-                document.getElementById('ofertasBadge').textContent = misOfertas.length;
+                const badge = document.getElementById('ofertasBadge');
+                if (badge) badge.textContent = misOfertas.length;
+
                 const container = document.getElementById('ofertasList');
-                
+                if (!container) return;
+
                 if (misOfertas.length === 0) {
                     container.innerHTML = `<p class="text-xs text-gray-500 italic">No has recibido propuestas laborales aún.</p>`;
                     return;
@@ -923,13 +952,17 @@
                 if (res.ok) {
                     const anuncios = await res.json();
                     if (anuncios.length > 0) {
-                        document.getElementById('anunciosSection').classList.remove('hidden');
-                        document.getElementById('anunciosPublicList').innerHTML = anuncios.map(a => `
-                            <div class="bg-indigo-950 p-2.5 rounded border border-indigo-800 text-xs">
-                                <p class="font-bold text-amber-300">${a.titulo}</p>
-                                <p class="text-indigo-100 text-[11px] mt-0.5">${a.mensaje}</p>
-                            </div>
-                        `).join('');
+                        const sec = document.getElementById('anunciosSection');
+                        if (sec) sec.classList.remove('hidden');
+                        const list = document.getElementById('anunciosPublicList');
+                        if (list) {
+                            list.innerHTML = anuncios.map(a => `
+                                <div class="bg-indigo-950 p-2.5 rounded border border-indigo-800 text-xs">
+                                    <p class="font-bold text-amber-300">${a.titulo}</p>
+                                    <p class="text-indigo-100 text-[11px] mt-0.5">${a.mensaje}</p>
+                                </div>
+                            `).join('');
+                        }
                     }
                 }
             } catch (err) {
