@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, create_engine
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
-# 1. BASE DE DATOS
+# 1. BASE DE DATOS (COMPATIBLE CON POSTGRESQL EN RENDER Y SQLITE LOCAL)
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
@@ -22,7 +22,8 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# 2. CONFIGURACIÓN SMTP (GMAIL OPTIMIZADA CON SSL PARA RENDER)
+
+# 2. CONFIGURACIÓN SMTP (GMAIL OPTIMIZADA CON SSL PUERTO 465 PARA RENDER)
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 465
 SMTP_USER = os.getenv("SMTP_USER", "carreradetfytoues@gmail.com")
@@ -55,9 +56,7 @@ def enviar_correo_activacion(correo_destino: str, codigo: str) -> bool:
         msg.attach(MIMEText(html, "html"))
 
         # Conexión SSL directa al puerto 465
-        with smtplib.SMTP_SSL(
-            SMTP_SERVER, SMTP_PORT, timeout=15
-        ) as server:
+        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=15) as server:
             server.login(SMTP_USER, SMTP_PASSWORD)
             server.sendmail(SMTP_USER, correo_destino, msg.as_string())
 
@@ -140,7 +139,7 @@ def es_registro_completo(p: ProfesionalDB) -> bool:
     )
 
 
-# 4. FASTAPI APP
+# 4. FASTAPI APP & MIDDLEWARE
 app = FastAPI()
 
 app.add_middleware(
@@ -156,6 +155,7 @@ def hash_password(password: str) -> str:
     return hashlib.sha256(password.strip().encode()).hexdigest()
 
 
+# ESQUEMAS PYDANTIC
 class RegistroAuth(BaseModel):
     correo: str
     password: str
