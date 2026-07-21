@@ -3,31 +3,34 @@ import os
 import random
 import secrets
 import smtplib
+import socket
+import ssl
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import List, Optional
 
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, create_engine
-from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
-# 1. BASE DE DATOS
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+# --------------------------------------------------------------------
+# 💡 PARCHE DE RED PARA RENDER (Forzar IPv4 y evitar [Errno 101])
+# --------------------------------------------------------------------
+old_getaddrinfo = socket.getaddrinfo
 
 
-# 2. CONFIGURACIÓN SMTP (GMAIL OPTIMIZADA CON SSL PUERTO 465 PARA RENDER)
+def new_getaddrinfo(*args, **kwargs):
+    responses = old_getaddrinfo(*args, **kwargs)
+    ipv4_responses = [r for r in responses if r[0] == socket.AF_INET]
+    return ipv4_responses if ipv4_responses else responses
+
+
+socket.getaddrinfo = new_getaddrinfo
+# --------------------------------------------------------------------
+
+# 2. CONFIGURACIÓN SMTP (GMAIL OPTIMIZADA PARA RENDER)
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 465
-SMTP_USER = os.getenv("SMTP_USER", "carreradetfytoues@gmail.com")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_USER = os.getenv("SMTP_USER", "carreradetfytoues@gmail.com").strip()
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").replace(" ", "").strip()
 
 
 def enviar_correo_activacion(correo_destino: str, codigo: str) -> bool:
@@ -55,7 +58,13 @@ def enviar_correo_activacion(correo_destino: str, codigo: str) -> bool:
         """
         msg.attach(MIMEText(html, "html"))
 
-        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=15) as server:
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+
+        with smtplib.SMTP_SSL(
+            SMTP_SERVER, SMTP_PORT, context=context, timeout=15
+        ) as server:
             server.login(SMTP_USER, SMTP_PASSWORD)
             server.sendmail(SMTP_USER, correo_destino, msg.as_string())
 
