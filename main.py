@@ -22,15 +22,16 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# 2. CONFIGURACIÓN SMTP (GMAIL)
+# 2. CONFIGURACIÓN SMTP (GMAIL OPTIMIZADA CON SSL PARA RENDER)
 SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
+SMTP_PORT = 465
 SMTP_USER = os.getenv("SMTP_USER", "carreradetfytoues@gmail.com")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "ugmwpnochguajatn")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 
 
 def enviar_correo_activacion(correo_destino: str, codigo: str) -> bool:
     if not SMTP_PASSWORD:
+        print("❌ Error: No se detectó la variable SMTP_PASSWORD en Render.")
         return False
     try:
         msg = MIMEMultipart("alternative")
@@ -52,14 +53,18 @@ def enviar_correo_activacion(correo_destino: str, codigo: str) -> bool:
         </html>
         """
         msg.attach(MIMEText(html, "html"))
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10)
-        server.starttls()
-        server.login(SMTP_USER, SMTP_PASSWORD)
-        server.sendmail(SMTP_USER, correo_destino, msg.as_string())
-        server.close()
+
+        # Conexión SSL directa al puerto 465
+        with smtplib.SMTP_SSL(
+            SMTP_SERVER, SMTP_PORT, timeout=15
+        ) as server:
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.sendmail(SMTP_USER, correo_destino, msg.as_string())
+
+        print(f"✅ Correo enviado exitosamente a: {correo_destino}")
         return True
     except Exception as e:
-        print(f"❌ Error SMTP: {e}")
+        print(f"❌ Error SMTP al enviar correo a {correo_destino}: {e}")
         return False
 
 
