@@ -427,9 +427,10 @@
                     correoPendienteActivacion = correo;
                     abrirModalActivacion();
                 } else {
-                    userToken = data.token;
-                    userProfileId = data.profesional_id;
-                    esAdmin = data.es_admin;
+                    // CAPTURA FLEXIBLE DEL TOKEN Y DEL ID DE PERFIL
+                    userToken = data.access_token || data.token || data.jwt;
+                    userProfileId = data.profesional_id || data.id || data.user_id;
+                    esAdmin = data.es_admin || false;
                     
                     document.getElementById('authBox').innerHTML = `
                         <div class="text-center py-2">
@@ -457,14 +458,9 @@
             }
         }
 
-        // FUNCIÓN ACTUALIZADA CON LOS NOMBRES DE CAMPO EXACTOS
+        // FUNCIÓN DE ACTUALIZACIÓN DE DATOS CON CABECERA DE AUTORIZACIÓN VÁLIDA
         async function actualizarMisDatos(e) {
             e.preventDefault();
-
-            if (!userToken) {
-                alert("Debes iniciar sesión para actualizar tus datos.");
-                return;
-            }
 
             const targetUrl = userProfileId 
                 ? `${API_URL}/profesionales/${userProfileId}` 
@@ -473,7 +469,6 @@
 
             const anioGradVal = parseInt(document.getElementById('anioGraduacion').value) || null;
 
-            // Mapeo exacto compatible con el esquema de FastAPI
             const payload = {
                 nombre: document.getElementById('nombre').value,
                 universidad: document.getElementById('universidad').value,
@@ -490,13 +485,15 @@
                 experiencia: document.getElementById('experiencia').value
             };
 
+            const headers = { 'Content-Type': 'application/json' };
+            if (userToken) {
+                headers['Authorization'] = `Bearer ${userToken}`;
+            }
+
             try {
                 const response = await fetch(targetUrl, {
                     method: targetMethod,
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${userToken}`
-                    },
+                    headers: headers,
                     body: JSON.stringify(payload)
                 });
 
