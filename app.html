@@ -66,7 +66,7 @@
                         <label class="block text-xs font-semibold text-gray-600">Contraseña</label>
                         <input type="password" id="authPassword" required class="w-full p-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     </div>
-                    <button type="submit" id="authBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2 rounded-lg transition">
+                    <button type="submit" id="authBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2 rounded-lg transition disabled:opacity-50">
                         Entrar a mi Perfil
                     </button>
                 </form>
@@ -325,7 +325,7 @@
             
             <form onsubmit="confirmarActivacionCodigo(event)" class="space-y-3 pt-2">
                 <input type="text" id="codigoActivacionInput" maxlength="6" required placeholder="123456" class="w-full p-3 text-center text-xl font-bold tracking-widest border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm py-2.5 rounded-xl transition">Activar mi Cuenta</button>
+                <button type="submit" id="btnConfirmarCodigo" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm py-2.5 rounded-xl transition">Activar mi Cuenta</button>
                 <button type="button" onclick="cerrarModalActivacion()" class="text-xs text-gray-400 hover:underline">Cancelar</button>
             </form>
         </div>
@@ -408,6 +408,14 @@
 
         async function procesarAuth(e) {
             e.preventDefault();
+            
+            const btn = document.getElementById('authBtn');
+            const textoOriginal = authMode === 'login' ? "Entrar a mi Perfil" : "Registrar Nueva Cuenta";
+
+            // Respuesta visual inmediata
+            btn.disabled = true;
+            btn.textContent = "⏳ Conectando con el servidor...";
+
             const correo = document.getElementById('authCorreo').value.trim().toLowerCase();
             const password = document.getElementById('authPassword').value.trim();
             const url = authMode === 'login' ? `${BASE_HOST}/api/auth/login` : `${BASE_HOST}/api/auth/registrar`;
@@ -448,6 +456,9 @@
                 }
             } catch (err) {
                 alert("Error de conexión al servidor.");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = textoOriginal;
             }
         }
 
@@ -491,6 +502,11 @@
 
         async function confirmarActivacionCodigo(e) {
             e.preventDefault();
+            const btn = document.getElementById('btnConfirmarCodigo');
+            const txt = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = "⏳ Verificando...";
+
             const codigo = document.getElementById('codigoActivacionInput').value.trim();
 
             try {
@@ -510,6 +526,9 @@
                 }
             } catch (err) {
                 alert("Error de conexión.");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = txt;
             }
         }
 
