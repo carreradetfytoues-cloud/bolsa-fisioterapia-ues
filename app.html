@@ -37,8 +37,19 @@
 
     <main class="container mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        <!-- COLUMNA IZQUIERDA: AUTH Y EDICIÓN -->
+        <!-- COLUMNA IZQUIERDA -->
         <div class="space-y-6">
+            <!-- TABLÓN DE ANUNCIOS INSTITUCIONALES -->
+            <section id="anunciosSection" class="hidden bg-indigo-900 text-white p-5 rounded-xl shadow-md border border-indigo-800 space-y-3">
+                <div class="flex justify-between items-center border-b border-indigo-700 pb-2">
+                    <h2 class="text-sm font-bold text-amber-300 flex items-center gap-2">
+                        📢 Tablón de Avisos UES
+                    </h2>
+                    <span class="text-[10px] bg-indigo-800 text-indigo-200 px-2 py-0.5 rounded font-semibold">Oficial</span>
+                </div>
+                <div id="anunciosPublicList" class="space-y-3 max-h-56 overflow-y-auto pr-1"></div>
+            </section>
+
             <!-- CAJA DE AUTH -->
             <section id="authBox" class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                 <div class="flex justify-between border-b pb-2 mb-4">
@@ -59,6 +70,56 @@
                         Entrar a mi Perfil
                     </button>
                 </form>
+            </section>
+
+            <!-- SUPERPANEL MÁSTER PARA EL ADMINISTRADOR UES -->
+            <section id="adminPanelSection" class="hidden bg-slate-900 text-white p-6 rounded-xl shadow-md border border-slate-800 space-y-4">
+                <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                    <h2 class="text-base font-bold text-amber-400 flex items-center gap-1.5">
+                        🛡️ Panel de Control UES
+                    </h2>
+                </div>
+
+                <div class="flex border-b border-slate-700 gap-2 text-xs font-semibold">
+                    <button id="adminTabOfertas" onclick="switchAdminTab('ofertas')" class="pb-2 text-amber-400 border-b-2 border-amber-400">Auditoría Ofertas</button>
+                    <button id="adminTabAnuncios" onclick="switchAdminTab('anuncios')" class="pb-2 text-slate-400 hover:text-white">Publicar Anuncio</button>
+                    <button id="adminTabUsuarios" onclick="switchAdminTab('usuarios')" class="pb-2 text-slate-400 hover:text-white">Gestión Cuentas</button>
+                </div>
+
+                <div id="adminSubOfertas" class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span id="totalOfertasAdminBadge" class="bg-amber-500 text-slate-950 font-bold text-[11px] px-2 py-0.5 rounded-full">0 Ofertas</span>
+                        <button onclick="exportarAuditoriaExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold px-2.5 py-1 rounded shadow-sm">📊 Excel Auditoría</button>
+                    </div>
+                    <div id="adminOfertasContainer" class="space-y-3 max-h-72 overflow-y-auto pr-1"></div>
+                </div>
+
+                <div id="adminSubAnuncios" class="hidden space-y-3">
+                    <form onsubmit="publicarAnuncioAdmin(event)" class="space-y-2 bg-slate-800 p-3 rounded-lg border border-slate-700">
+                        <p class="text-xs font-bold text-amber-300">Crear Nuevo Aviso Institucional</p>
+                        <input type="text" id="anuncioTitulo" required placeholder="Título del Aviso..." class="w-full p-2 text-xs bg-slate-900 border border-slate-700 rounded text-white focus:outline-none">
+                        <textarea id="anuncioMensaje" rows="2" required placeholder="Contenido de la convocatoria..." class="w-full p-2 text-xs bg-slate-900 border border-slate-700 rounded text-white focus:outline-none"></textarea>
+                        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-1.5 rounded">📢 Publicar Aviso</button>
+                    </form>
+                    <div id="adminAnunciosList" class="space-y-2 max-h-48 overflow-y-auto"></div>
+                </div>
+
+                <div id="adminSubUsuarios" class="hidden space-y-3">
+                    <p class="text-[11px] text-slate-400">Otorga el sello oficial "Verificado UES" o elimina cuentas:</p>
+                    <div id="adminUsuariosContainer" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+                </div>
+            </section>
+
+            <!-- BANDEJA DE OFERTAS RECIBIDAS -->
+            <section id="ofertasSection" class="hidden bg-white p-6 rounded-xl shadow-sm border border-amber-200 bg-amber-50/30 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-base font-bold text-gray-900 flex items-center gap-2">
+                        <span>📩 Ofertas Recibidas</span>
+                        <span id="ofertasBadge" class="bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full">0</span>
+                    </h2>
+                    <button onclick="cargarMisOfertas()" class="text-xs text-indigo-600 font-semibold hover:underline">🔄 Actualizar</button>
+                </div>
+                <div id="ofertasList" class="space-y-3 max-h-60 overflow-y-auto pr-1"></div>
             </section>
 
             <!-- FORMULARIO DE EDICIÓN DEL GRADUADO -->
@@ -159,79 +220,94 @@
                     </div>
 
                     <div class="pt-2 space-y-3">
-                        <button type="submit" id="btnGuardarDatos" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition duration-200">
+                        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition duration-200">
                             🔄 Actualizar mis Datos
+                        </button>
+                        
+                        <button type="button" onclick="eliminarMiCuenta()" class="w-full bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold py-2 rounded-lg transition border border-red-200">
+                            🗑️ Eliminar mi Cuenta y Perfil
                         </button>
                     </div>
                 </form>
             </section>
         </div>
 
-        <!-- COLUMNA DERECHA: FILTROS Y DIRECTORIO -->
+        <!-- COLUMNA DERECHA -->
         <section class="lg:col-span-2 space-y-6">
-            
-            <!-- PANEL DE FILTROS RESTAURADO -->
+            <!-- FILTROS -->
             <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 space-y-4">
-                <div class="flex items-center justify-between text-indigo-600 border-b pb-3">
+                <div class="flex items-center justify-between text-indigo-600">
                     <div class="flex items-center gap-2">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-gray-700">PANEL DE CONTROL PARA EMPRESAS / RECLUTADORES</h3>
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-gray-600">Panel de Control para Empresas / Reclutadores</h3>
                     </div>
-                    <button onclick="limpiarFiltros()" class="text-xs text-gray-500 hover:text-indigo-600 font-semibold flex items-center gap-1">
+                    <button onclick="limpiarFiltros()" class="text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 font-semibold py-1 px-2.5 rounded transition">
                         ✕ Limpiar Filtros
                     </button>
                 </div>
-
-                <!-- CONTROLES DE FILTRADO -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                     <div>
-                        <label class="block text-[11px] font-semibold text-gray-500 mb-1">Palabra clave</label>
-                        <input type="text" id="filterKeyword" oninput="filtrarDirectorio()" placeholder="Ej: pediatría..." class="w-full p-2 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Palabra clave</label>
+                        <input type="text" id="searchKeyword" oninput="filtrarDirectorio()" placeholder="Ej: pediatría..." class="w-full p-2 text-xs border border-gray-300 rounded-lg focus:outline-none">
                     </div>
                     <div>
-                        <label class="block text-[11px] font-semibold text-gray-500 mb-1">Título Académico</label>
-                        <select id="filterTitulo" onchange="filtrarDirectorio()" class="w-full p-2 text-xs border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                            <option value="">Todos los títulos</option>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Título Académico</label>
+                        <select id="filterProfesion" onchange="filtrarDirectorio()" class="w-full p-2 text-xs border border-gray-300 rounded-lg focus:outline-none bg-white">
+                            <option value="todos">Todos los títulos</option>
                             <option value="Tecnologo en Fisioterapia">Tecnólogo en Fisioterapia</option>
                             <option value="Licenciado en Fisioterapia">Licenciado en Fisioterapia</option>
                             <option value="Licenciado en Terapia Ocupacional">Licenciado en Terapia Ocupacional</option>
+                            <option value="Licenciado en Fisioterapia y Terapia Ocupacional">Ambas Especialidades</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-[11px] font-semibold text-gray-500 mb-1">Universidad</label>
-                        <select id="filterUniversidad" onchange="filtrarDirectorio()" class="w-full p-2 text-xs border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                            <option value="">Todas las Univ.</option>
-                            <option value="Universidad de El Salvador">Universidad de El Salvador</option>
-                            <option value="Universidad Autónoma de Santa Ana">Universidad Autónoma de Santa Ana</option>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Universidad</label>
+                        <select id="filterUniversidad" onchange="filtrarDirectorio()" class="w-full p-2 text-xs border border-gray-300 rounded-lg focus:outline-none bg-white">
+                            <option value="todos">Todas las Univ.</option>
+                            <option value="Universidad de El Salvador">Univ. de El Salvador</option>
+                            <option value="Universidad Autónoma de Santa Ana">Univ. Autónoma de Santa Ana</option>
+                            <option value="Universidad extranjera">Univ. extranjera</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-[11px] font-semibold text-gray-500 mb-1">Zona (Dept.)</label>
-                        <select id="filterZona" onchange="filtrarDirectorio()" class="w-full p-2 text-xs border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                            <option value="">Todo El Salvador</option>
-                            <option value="San Salvador">San Salvador</option>
-                            <option value="La Libertad">La Libertad</option>
-                            <option value="Santa Ana">Santa Ana</option>
-                            <option value="San Miguel">San Miguel</option>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Zona (Dept.)</label>
+                        <select id="filterDepartamento" onchange="filtrarDirectorio()" class="w-full p-2 text-xs border border-gray-300 rounded-lg focus:outline-none bg-white">
+                            <option value="todos">Todo El Salvador</option>
                             <option value="Ahuachapán">Ahuachapán</option>
+                            <option value="Cabañas">Cabañas</option>
+                            <option value="Chalatenango">Chalatenango</option>
+                            <option value="Cuscatlán">Cuscatlán</option>
+                            <option value="La Libertad">La Libertad</option>
+                            <option value="La Paz">La Paz</option>
+                            <option value="La Unión">La Unión</option>
+                            <option value="Morazán">Morazán</option>
+                            <option value="San Miguel">San Miguel</option>
+                            <option value="San Salvador">San Salvador</option>
+                            <option value="San Vicente">San Vicente</option>
+                            <option value="Santa Ana">Santa Ana</option>
                             <option value="Sonsonate">Sonsonate</option>
+                            <option value="Usulután">Usulután</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-[11px] font-semibold text-gray-500 mb-1">Disponibilidad</label>
-                        <select id="filterDisponibilidad" onchange="filtrarDirectorio()" class="w-full p-2 text-xs border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                            <option value="">Cualquier estado</option>
-                            <option value="disponible">Disponible para contratación</option>
-                            <option value="laborando">Laborando actualmente</option>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Disponibilidad</label>
+                        <select id="filterDisponibilidad" onchange="filtrarDirectorio()" class="w-full p-2 text-xs border border-gray-300 rounded-lg focus:outline-none bg-white">
+                            <option value="todos">Cualquier estado</option>
+                            <option value="disponible">Solo Disponibles</option>
+                            <option value="laborando">Solo Laborando</option>
+                            <option value="cambio">Abiertos a Cambio</option>
                         </select>
                     </div>
                 </div>
             </div>
 
-            <!-- ENCABEZADO RESULTADOS -->
             <div class="flex justify-between items-center flex-wrap gap-2">
                 <h2 class="text-xl font-bold text-gray-900">Resultados del Directorio</h2>
                 <div class="flex items-center gap-3">
+                    <button onclick="exportarAExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 px-3.5 rounded-lg flex items-center shadow-sm transition">
+                        📊 Exportar Lista a Excel
+                    </button>
                     <span id="counter" class="bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-1 rounded-full">0 Candidatos</span>
                 </div>
             </div>
@@ -240,7 +316,7 @@
         </section>
     </main>
 
-    <!-- VENTANA MODAL ACTIVACIÓN POR CORREO OBLIGATORIA -->
+    <!-- VENTANA MODAL 1: ACTIVACIÓN DE CUENTA CON CÓDIGO -->
     <div id="modalActivarCuenta" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-4 text-center">
             <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto text-xl">📩</div>
@@ -248,105 +324,70 @@
             <p class="text-xs text-gray-500">Hemos enviado un código de 6 dígitos a <strong id="correoActivacionTexto" class="text-indigo-600"></strong>.</p>
             
             <form onsubmit="confirmarActivacionCodigo(event)" class="space-y-3 pt-2">
-                <input type="text" id="codigoActivacionInput" required placeholder="Ingresa los 6 dígitos" maxlength="6" class="w-full p-3 text-center text-xl font-bold tracking-widest border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <input type="text" id="codigoActivacionInput" maxlength="6" required placeholder="123456" class="w-full p-3 text-center text-xl font-bold tracking-widest border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm py-2.5 rounded-xl transition">Activar mi Cuenta</button>
+                <button type="button" onclick="cerrarModalActivacion()" class="text-xs text-gray-400 hover:underline">Cancelar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- VENTANA MODAL 2: FORMULARIO OFERTA LABORAL -->
+    <div id="modalOferta" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 class="text-base font-bold text-gray-900 flex items-center gap-2">
+                    🏢 Enviar Oferta Laboral a <span id="modalNombreCandidato" class="text-indigo-600"></span>
+                </h3>
+                <button onclick="cerrarModalOferta()" class="text-gray-400 hover:text-gray-600 font-bold">✕</button>
+            </div>
+            <form id="formEnviarOferta" class="space-y-3" onsubmit="enviarOfertaLaboral(event)">
+                <input type="hidden" id="modalProfId">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700">Nombre de la Empresa / Clínica</label>
+                    <input type="text" id="ofertaEmpresa" required placeholder="Ej: Clínica de Rehabilitación San Antonio" class="w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700">Contacto (Teléfono o Correo del Reclutador)</label>
+                    <input type="text" id="ofertaContacto" required placeholder="Ej: 7890-1234 / rrhh@clinica.com" class="w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700">Título de la Vacante</label>
+                    <input type="text" id="ofertaVacante" required placeholder="Ej: Fisioterapeuta Tarde Completa" class="w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700">Propuesta / Mensaje para el Candidato</label>
+                    <textarea id="ofertaMensaje" rows="3" required placeholder="Ej: Te invitamos a postularte para nuestra nueva sede..." class="w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="cerrarModalOferta()" class="px-4 py-2 text-xs font-semibold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 text-xs font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-sm">🚀 Enviar Propuesta</button>
+                </div>
             </form>
         </div>
     </div>
 
     <script>
-        const API_URL = "https://bolsa-fisioterapia-ues.onrender.com/api";
+        const BASE_HOST = "https://bolsa-fisioterapia-ues.onrender.com";
+        const API_URL = `${BASE_HOST}/api/profesionales`;
+        let listaGlobalProfesionales = [];
+        let listaFiltradaActiva = [];
+        let listaAuditoriaGlobal = [];
+        
+        let userToken = localStorage.getItem('ues_token') || null;
+        let userProfileId = localStorage.getItem('ues_profesional_id') || null;
+        let esAdmin = localStorage.getItem('ues_es_admin') === 'true';
+        let userCorreo = localStorage.getItem('ues_correo') || '';
         let authMode = 'login'; 
         let correoPendienteActivacion = "";
-        let todosLosCandidatos = [];
-
-        let userToken = localStorage.getItem('ues_token');
-        let userProfileId = localStorage.getItem('ues_profesional_id');
-        let userCorreo = localStorage.getItem('ues_correo');
 
         document.addEventListener('DOMContentLoaded', () => {
             cargarDirectorio();
+            cargarAnunciosPublicos();
 
-            if (userToken && userToken !== 'undefined' && userToken !== 'null') {
-                mostrarEstadoSesion(userCorreo);
-                cargarPerfilPropio();
+            if (userToken && userToken !== 'null' && userToken !== 'undefined') {
+                mostrarSesionIniciadaUI(userCorreo, esAdmin);
             }
         });
-
-        async function cargarDirectorio() {
-            try {
-                const res = await fetch(`${API_URL}/profesionales`);
-                if (!res.ok) return;
-                todosLosCandidatos = await res.json();
-                filtrarDirectorio();
-            } catch (e) {
-                console.error("Error al cargar directorio:", e);
-            }
-        }
-
-        function filtrarDirectorio() {
-            const kw = document.getElementById('filterKeyword').value.toLowerCase();
-            const titulo = document.getElementById('filterTitulo').value;
-            const univ = document.getElementById('filterUniversidad').value;
-            const zona = document.getElementById('filterZona').value;
-            const disp = document.getElementById('filterDisponibilidad').value;
-
-            const filtrados = todosLosCandidatos.filter(p => {
-                const matchKw = !kw || (p.nombre && p.nombre.toLowerCase().includes(kw)) || (p.experiencia && p.experiencia.toLowerCase().includes(kw)) || (p.estudios && p.estudios.toLowerCase().includes(kw));
-                const matchTitulo = !titulo || p.profesion === titulo || p.carrera === titulo;
-                const matchUniv = !univ || p.universidad === univ;
-                const matchZona = !zona || p.departamento === zona;
-                const matchDisp = !disp || (disp === 'laborando' ? p.labora : !p.labora);
-
-                return matchKw && matchTitulo && matchUniv && matchZona && matchDisp;
-            });
-
-            renderizarDirectorio(filtrados);
-        }
-
-        function limpiarFiltros() {
-            document.getElementById('filterKeyword').value = '';
-            document.getElementById('filterTitulo').value = '';
-            document.getElementById('filterUniversidad').value = '';
-            document.getElementById('filterZona').value = '';
-            document.getElementById('filterDisponibilidad').value = '';
-            filtrarDirectorio();
-        }
-
-        function renderizarDirectorio(lista) {
-            const container = document.getElementById('directory');
-            const counter = document.getElementById('counter');
-            if (!container) return;
-
-            if (counter) counter.textContent = `${lista.length} Candidatos`;
-
-            if (lista.length === 0) {
-                container.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400 font-medium">No se encontraron profesionales con estos criterios.</div>`;
-                return;
-            }
-
-            container.innerHTML = lista.map(p => `
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between space-y-3">
-                    <div class="space-y-1">
-                        <div class="flex items-center justify-between">
-                            <h3 class="font-bold text-gray-900 text-base">${p.nombre}</h3>
-                            <span class="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-full">${p.profesion || p.carrera || 'Fisioterapia'}</span>
-                        </div>
-                        <p class="text-xs text-gray-500">
-                            📍 <strong>${p.departamento || 'El Salvador'}</strong> | 🎓 ${p.universidad || 'UES'}
-                        </p>
-                    </div>
-                    <div class="text-xs text-gray-600 bg-gray-50 p-3 rounded-lg space-y-1">
-                        <p><strong>Contacto:</strong> ${p.contacto || p.telefono || p.correo || 'N/A'}</p>
-                        <p><strong>Estudios:</strong> ${p.estudios || 'Graduado UES'}</p>
-                        <p><strong>Experiencia:</strong> ${p.experiencia || 'Sin detalle'}</p>
-                        <p class="pt-1 text-[11px] font-semibold ${p.labora ? 'text-amber-600' : 'text-emerald-600'}">
-                            ${p.labora ? '💼 Laborando actualmente' : '✅ Disponible para contratación'}
-                        </p>
-                    </div>
-                </div>
-            `).join('');
-        }
 
         function cambiarTabAuth(mode) {
             authMode = mode;
@@ -369,7 +410,7 @@
             e.preventDefault();
             const correo = document.getElementById('authCorreo').value;
             const password = document.getElementById('authPassword').value;
-            const url = authMode === 'login' ? `${API_URL}/auth/login` : `${API_URL}/auth/registrar`;
+            const url = authMode === 'login' ? `${BASE_HOST}/api/auth/login` : `${BASE_HOST}/api/auth/registrar`;
             
             try {
                 const response = await fetch(url, {
@@ -380,12 +421,11 @@
                 const data = await response.json();
                 
                 if (!response.ok) {
-                    let errText = typeof data.detail === 'string' ? data.detail : "Error de autenticación";
-                    if (errText.includes("aún no está verificado") || errText.includes("código")) {
+                    if (data.detail && (data.detail.includes("aún no está verificado") || data.detail.includes("código"))) {
                         correoPendienteActivacion = correo;
                         abrirModalActivacion();
                     } else {
-                        alert(errText);
+                        alert(data.detail || "Error en la operación");
                     }
                     return;
                 }
@@ -394,32 +434,45 @@
                     correoPendienteActivacion = correo;
                     abrirModalActivacion();
                 } else {
-                    userToken = data.access_token || data.token;
+                    userToken = data.token || data.access_token;
                     userProfileId = data.profesional_id;
+                    esAdmin = !!data.es_admin;
                     userCorreo = correo;
 
-                    if (userToken) localStorage.setItem('ues_token', userToken);
+                    localStorage.setItem('ues_token', userToken);
                     if (userProfileId) localStorage.setItem('ues_profesional_id', userProfileId);
-                    if (correo) localStorage.setItem('ues_correo', correo);
+                    localStorage.setItem('ues_es_admin', esAdmin);
+                    localStorage.setItem('ues_correo', correo);
                     
-                    mostrarEstadoSesion(correo);
-                    await cargarPerfilPropio();
+                    mostrarSesionIniciadaUI(correo, esAdmin);
                 }
             } catch (err) {
                 alert("Error de conexión al servidor.");
             }
         }
 
-        function mostrarEstadoSesion(correo) {
+        async function mostrarSesionIniciadaUI(correo, adminFlag) {
             document.getElementById('authBox').innerHTML = `
                 <div class="text-center py-2">
-                    <p class="text-sm text-green-600 font-bold">✓ Sesión Iniciada</p>
-                    <p class="text-xs text-gray-500 mb-2">${correo || ''}</p>
+                    <p class="text-sm ${adminFlag ? 'text-amber-500' : 'text-green-600'} font-bold">
+                        ${adminFlag ? '🛡️ Administrador UES Logueado' : '✓ Sesión Iniciada'}
+                    </p>
+                    <p class="text-xs text-gray-500 mb-2">${correo}</p>
                     <button onclick="cerrarSesion()" class="text-xs text-red-500 underline font-semibold">Cerrar Sesión</button>
                 </div>
             `;
-            document.getElementById('formSection').classList.remove('opacity-40', 'pointer-events-none');
-            document.getElementById('formTitle').textContent = "Modificar mis Datos Profesionales";
+
+            if (adminFlag) {
+                document.getElementById('adminPanelSection').classList.remove('hidden');
+                document.getElementById('formSection').classList.add('hidden');
+                await cargarAuditoriaAdmin();
+            } else {
+                document.getElementById('formSection').classList.remove('opacity-40', 'pointer-events-none');
+                document.getElementById('formTitle').textContent = "Modificar mis Datos Profesionales";
+                document.getElementById('ofertasSection').classList.remove('hidden');
+                await cargarPerfilPropio();
+                await cargarMisOfertas();
+            }
         }
 
         function cerrarSesion() {
@@ -427,51 +480,277 @@
             location.reload();
         }
 
-        async function cargarPerfilPropio() {
-            if (!userToken) return;
+        function abrirModalActivacion() {
+            document.getElementById('correoActivacionTexto').textContent = correoPendienteActivacion;
+            document.getElementById('modalActivarCuenta').classList.remove('hidden');
+        }
+
+        function cerrarModalActivacion() {
+            document.getElementById('modalActivarCuenta').classList.add('hidden');
+        }
+
+        async function confirmarActivacionCodigo(e) {
+            e.preventDefault();
+            const codigo = document.getElementById('codigoActivacionInput').value;
 
             try {
-                const res = await fetch(`${API_URL}/profesionales/me`, {
-                    headers: { 'Authorization': `Bearer ${userToken}` }
+                const res = await fetch(`${BASE_HOST}/api/auth/activar`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ correo: correoPendienteActivacion, codigo })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    alert("¡Cuenta activada con éxito! Ya puedes iniciar sesión.");
+                    cerrarModalActivacion();
+                    cambiarTabAuth('login');
+                } else {
+                    alert(data.detail || "Código incorrecto.");
+                }
+            } catch (err) {
+                alert("Error de conexión.");
+            }
+        }
+
+        async function cargarDirectorio() {
+            try {
+                const res = await fetch(API_URL);
+                if (!res.ok) return;
+                listaGlobalProfesionales = await res.json();
+                filtrarDirectorio();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function filtrarDirectorio() {
+            const kw = document.getElementById('searchKeyword').value.toLowerCase();
+            const prof = document.getElementById('filterProfesion').value;
+            const univ = document.getElementById('filterUniversidad').value;
+            const dept = document.getElementById('filterDepartamento').value;
+            const disp = document.getElementById('filterDisponibilidad').value;
+
+            listaFiltradaActiva = listaGlobalProfesionales.filter(p => {
+                const matchKw = !kw || (p.nombre && p.nombre.toLowerCase().includes(kw)) || (p.experiencia && p.experiencia.toLowerCase().includes(kw)) || (p.estudios && p.estudios.toLowerCase().includes(kw));
+                const matchProf = prof === 'todos' || p.profesion === prof || p.carrera === prof;
+                const matchUniv = univ === 'todos' || p.universidad === univ;
+                const matchDept = dept === 'todos' || p.departamento === dept;
+                
+                let matchDisp = true;
+                if (disp === 'disponible') matchDisp = !p.labora;
+                if (disp === 'laborando') matchDisp = p.labora;
+                if (disp === 'cambio') matchDisp = p.cambio_laboral;
+
+                return matchKw && matchProf && matchUniv && matchDept && matchDisp;
+            });
+
+            renderizarDirectorio(listaFiltradaActiva);
+        }
+
+        function limpiarFiltros() {
+            document.getElementById('searchKeyword').value = '';
+            document.getElementById('filterProfesion').value = 'todos';
+            document.getElementById('filterUniversidad').value = 'todos';
+            document.getElementById('filterDepartamento').value = 'todos';
+            document.getElementById('filterDisponibilidad').value = 'todos';
+            filtrarDirectorio();
+        }
+
+        function renderizarDirectorio(lista) {
+            const container = document.getElementById('directory');
+            const counter = document.getElementById('counter');
+            if (counter) counter.textContent = `${lista.length} Candidatos`;
+
+            if (lista.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400 font-medium">No hay graduados con estos criterios.</div>`;
+                return;
+            }
+
+            container.innerHTML = lista.map(p => {
+                const phoneClean = (p.telefono || p.contacto || '').replace(/\D/g, '');
+                const whatsappUrl = phoneClean ? `https://wa.me/503${phoneClean}?text=${encodeURIComponent('Hola ' + p.nombre + ', vi tu perfil en la Bolsa de Trabajo UES.')}` : null;
+
+                return `
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between space-y-4 hover:shadow-md transition">
+                    <div class="space-y-2">
+                        <div class="flex items-start justify-between gap-2">
+                            <div>
+                                <h3 class="font-bold text-gray-900 text-base flex items-center gap-1.5">
+                                    ${p.nombre}
+                                    ${p.verificado_ues ? '<span title="Verificado UES" class="text-blue-500 text-sm">b®</span>' : ''}
+                                </h3>
+                                <p class="text-xs text-gray-500 mt-0.5">
+                                    📍 <strong>${p.departamento || 'El Salvador'}</strong> | 🎓 ${p.universidad || 'UES'}
+                                </p>
+                            </div>
+                            <span class="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-2.5 py-1 rounded-full shrink-0">
+                                ${p.profesion || p.carrera || 'Fisioterapia'}
+                            </span>
+                        </div>
+
+                        <div class="text-xs text-gray-600 bg-gray-50 p-3 rounded-lg space-y-1">
+                            <p><strong>Estudios:</strong> ${p.estudios || 'Graduado UES'}</p>
+                            <p><strong>Año de Graduación:</strong> ${p.graduacion || p.anio_graduacion || 'N/A'}</p>
+                            <p><strong>Experiencia:</strong> ${p.experiencia || 'Sin detalle'}</p>
+                            ${p.empresa ? `<p><strong>Lugar de Trabajo:</strong> ${p.empresa}</p>` : ''}
+                            <div class="pt-1 flex items-center justify-between text-[11px] font-semibold">
+                                <span class="${p.labora ? 'text-amber-600' : 'text-emerald-600'}">
+                                    ${p.labora ? '💼 Laborando actualmente' : '✅ Disponible para contratación'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-gray-100 space-y-2">
+                        <div class="flex gap-2">
+                            ${phoneClean ? `
+                            <a href="${whatsappUrl}" target="_blank" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition">
+                                WhatsApp
+                            </a>` : ''}
+
+                            ${p.correo ? `
+                            <a href="mailto:${p.correo}" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition">
+                                ✉️ Correo
+                            </a>` : ''}
+                        </div>
+
+                        <button onclick="abrirModalOferta(${p.id}, '${p.nombre}')" class="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition">
+                            💼 Enviar Oferta Laboral
+                        </button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        function abrirModalOferta(id, nombre) {
+            document.getElementById('modalProfId').value = id;
+            document.getElementById('modalNombreCandidato').textContent = nombre;
+            document.getElementById('modalOferta').classList.remove('hidden');
+        }
+
+        function cerrarModalOferta() {
+            document.getElementById('modalOferta').classList.add('hidden');
+        }
+
+        async function enviarOfertaLaboral(e) {
+            e.preventDefault();
+            const profId = document.getElementById('modalProfId').value;
+            const empresa = document.getElementById('ofertaEmpresa').value;
+            const contacto = document.getElementById('ofertaContacto').value;
+            const vacante = document.getElementById('ofertaVacante').value;
+            const mensaje = document.getElementById('ofertaMensaje').value;
+
+            try {
+                const res = await fetch(`${BASE_HOST}/api/ofertas`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ profesional_id: parseInt(profId), empresa, contacto, vacante, mensaje })
                 });
 
                 if (res.ok) {
-                    const profile = await res.json();
-                    if (profile.id) {
-                        userProfileId = profile.id;
-                        localStorage.setItem('ues_profesional_id', profile.id);
+                    alert("¡Oferta propuesta enviada con éxito al graduado!");
+                    cerrarModalOferta();
+                    document.getElementById('formEnviarOferta').reset();
+                } else {
+                    alert("Error al enviar oferta.");
+                }
+            } catch (err) {
+                alert("Error de conexión.");
+            }
+        }
+
+        async function cargarMisOfertas() {
+            if (!userToken) return;
+            try {
+                const res = await fetch(`${BASE_HOST}/api/ofertas/me`, {
+                    headers: { 'Authorization': `Bearer ${userToken}` }
+                });
+                if (res.ok) {
+                    const ofertas = await res.json();
+                    document.getElementById('ofertasBadge').textContent = ofertas.length;
+                    const list = document.getElementById('ofertasList');
+                    
+                    if (ofertas.length === 0) {
+                        list.innerHTML = `<p class="text-xs text-gray-500">No has recibido ofertas aún.</p>`;
+                        return;
                     }
-                    if (profile.nombre) document.getElementById('nombre').value = profile.nombre;
-                    if (profile.universidad) document.getElementById('universidad').value = profile.universidad;
-                    if (profile.profesion || profile.carrera) document.getElementById('profesion').value = profile.profesion || profile.carrera;
-                    if (profile.departamento) document.getElementById('departamento').value = profile.departamento;
-                    if (profile.telefono) document.getElementById('telefono').value = profile.telefono;
-                    if (profile.correo) document.getElementById('correo').value = profile.correo;
-                    if (profile.estudios) document.getElementById('estudios').value = profile.estudios;
-                    if (profile.graduacion || profile.anio_graduacion) document.getElementById('anioGraduacion').value = profile.graduacion || profile.anio_graduacion;
-                    if (profile.labora !== undefined) {
-                        document.getElementById('labora').value = profile.labora ? 'si' : 'no';
-                        toggleEmpresa();
-                    }
-                    if (profile.empresa) document.getElementById('empresa').value = profile.empresa;
-                    if (profile.cambio_laboral !== undefined) document.getElementById('cambioLaboral').value = profile.cambio_laboral ? 'si' : 'no';
-                    if (profile.experiencia) document.getElementById('experiencia').value = profile.experiencia;
+
+                    list.innerHTML = ofertas.map(o => `
+                        <div class="bg-white p-3 rounded-lg border border-amber-200 shadow-sm text-xs space-y-1">
+                            <div class="flex justify-between font-bold text-gray-900">
+                                <span>🏢 ${o.empresa}</span>
+                                <span class="text-indigo-600">${o.vacante}</span>
+                            </div>
+                            <p class="text-gray-600">${o.mensaje}</p>
+                            <p class="text-[11px] text-gray-400 font-semibold pt-1">📞 Contacto: ${o.contacto}</p>
+                        </div>
+                    `).join('');
                 }
             } catch (e) {
-                console.log("Cargando datos del perfil...");
+                console.error(e);
+            }
+        }
+
+        async function cargarAnunciosPublicos() {
+            try {
+                const res = await fetch(`${BASE_HOST}/api/anuncios`);
+                if (res.ok) {
+                    const anuncios = await res.json();
+                    if (anuncios.length > 0) {
+                        document.getElementById('anunciosSection').classList.remove('hidden');
+                        document.getElementById('anunciosPublicList').innerHTML = anuncios.map(a => `
+                            <div class="bg-indigo-950/60 p-2.5 rounded-lg border border-indigo-700/50 space-y-1">
+                                <h4 class="text-xs font-bold text-amber-300">${a.titulo}</h4>
+                                <p class="text-xs text-indigo-100">${a.mensaje}</p>
+                            </div>
+                        `).join('');
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function cargarPerfilPropio() {
+            if (!userToken) return;
+            try {
+                const res = await fetch(`${BASE_HOST}/api/profesionales/me`, {
+                    headers: { 'Authorization': `Bearer ${userToken}` }
+                });
+                if (res.ok) {
+                    const p = await res.json();
+                    if (p.id) {
+                        userProfileId = p.id;
+                        localStorage.setItem('ues_profesional_id', p.id);
+                    }
+                    if (p.nombre) document.getElementById('nombre').value = p.nombre;
+                    if (p.universidad) document.getElementById('universidad').value = p.universidad;
+                    if (p.profesion || p.carrera) document.getElementById('profesion').value = p.profesion || p.carrera;
+                    if (p.departamento) document.getElementById('departamento').value = p.departamento;
+                    if (p.telefono) document.getElementById('telefono').value = p.telefono;
+                    if (p.correo) document.getElementById('correo').value = p.correo;
+                    if (p.estudios) document.getElementById('estudios').value = p.estudios;
+                    if (p.graduacion || p.anio_graduacion) document.getElementById('anioGraduacion').value = p.graduacion || p.anio_graduacion;
+                    if (p.labora !== undefined) {
+                        document.getElementById('labora').value = p.labora ? 'si' : 'no';
+                        toggleEmpresa();
+                    }
+                    if (p.empresa) document.getElementById('empresa').value = p.empresa;
+                    if (p.cambio_laboral !== undefined) document.getElementById('cambioLaboral').value = p.cambio_laboral ? 'si' : 'no';
+                    if (p.experiencia) document.getElementById('experiencia').value = p.experiencia;
+                }
+            } catch (e) {
+                console.error(e);
             }
         }
 
         async function actualizarMisDatos(e) {
             e.preventDefault();
+            if (!userToken) return alert("Inicia sesión nuevamente.");
 
-            if (!userToken) {
-                alert("Tu sesión ha vencido. Vuelve a iniciar sesión.");
-                cerrarSesion();
-                return;
-            }
-
-            const targetUrl = userProfileId ? `${API_URL}/profesionales/${userProfileId}` : `${API_URL}/profesionales`;
+            const targetUrl = userProfileId ? `${API_URL}/${userProfileId}` : API_URL;
             const targetMethod = userProfileId ? 'PUT' : 'POST';
             const anioGradVal = parseInt(document.getElementById('anioGraduacion').value) || null;
 
@@ -493,33 +772,36 @@
                 experiencia: document.getElementById('experiencia').value
             };
 
-            const btn = document.getElementById('btnGuardarDatos');
-            btn.disabled = true;
-            btn.textContent = "Guardando...";
-
             try {
-                const response = await fetch(targetUrl, {
+                const res = await fetch(targetUrl, {
                     method: targetMethod,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${userToken}`
-                    },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userToken}` },
                     body: JSON.stringify(payload)
                 });
-
-                if (!response.ok) {
-                    alert("Error al guardar los datos.");
-                    return;
+                if (res.ok) {
+                    alert("¡Tus datos profesionales se han actualizado exitosamente!");
+                    await cargarDirectorio();
+                } else {
+                    alert("Error al actualizar datos.");
                 }
-
-                alert("¡Tus datos se han guardado exitosamente!");
-                await cargarDirectorio();
-
             } catch (err) {
-                alert("Error de conexión al servidor.");
-            } finally {
-                btn.disabled = false;
-                btn.textContent = "🔄 Actualizar mis Datos";
+                alert("Error de conexión.");
+            }
+        }
+
+        async function eliminarMiCuenta() {
+            if (!confirm("¿Estás seguro de que deseas eliminar tu perfil y cuenta permanentemente?")) return;
+            try {
+                const res = await fetch(`${BASE_HOST}/api/profesionales/me`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${userToken}` }
+                });
+                if (res.ok) {
+                    alert("Tu cuenta ha sido eliminada.");
+                    cerrarSesion();
+                }
+            } catch (e) {
+                alert("Error al eliminar la cuenta.");
             }
         }
 
@@ -530,39 +812,136 @@
             else wrapper.classList.add('hidden');
         }
 
-        function abrirModalActivacion() {
-            document.getElementById('correoActivacionTexto').textContent = correoPendienteActivacion;
-            document.getElementById('codigoActivacionInput').value = '';
-            document.getElementById('modalActivarCuenta').classList.remove('hidden');
+        // FUNCIONES ADMIN MÁSTER
+        function switchAdminTab(tab) {
+            document.getElementById('adminSubOfertas').classList.add('hidden');
+            document.getElementById('adminSubAnuncios').classList.add('hidden');
+            document.getElementById('adminSubUsuarios').classList.add('hidden');
+
+            document.getElementById('adminTabOfertas').className = "pb-2 text-slate-400 hover:text-white";
+            document.getElementById('adminTabAnuncios').className = "pb-2 text-slate-400 hover:text-white";
+            document.getElementById('adminTabUsuarios').className = "pb-2 text-slate-400 hover:text-white";
+
+            if (tab === 'ofertas') {
+                document.getElementById('adminSubOfertas').classList.remove('hidden');
+                document.getElementById('adminTabOfertas').className = "pb-2 text-amber-400 border-b-2 border-amber-400";
+            } else if (tab === 'anuncios') {
+                document.getElementById('adminSubAnuncios').classList.remove('hidden');
+                document.getElementById('adminTabAnuncios').className = "pb-2 text-amber-400 border-b-2 border-amber-400";
+            } else if (tab === 'usuarios') {
+                document.getElementById('adminSubUsuarios').classList.remove('hidden');
+                document.getElementById('adminTabUsuarios').className = "pb-2 text-amber-400 border-b-2 border-amber-400";
+                cargarUsuariosAdmin();
+            }
         }
 
-        function cerrarModalActivacion() {
-            document.getElementById('modalActivarCuenta').classList.add('hidden');
+        async function cargarAuditoriaAdmin() {
+            try {
+                const res = await fetch(`${BASE_HOST}/api/admin/ofertas`, {
+                    headers: { 'Authorization': `Bearer ${userToken}` }
+                });
+                if (res.ok) {
+                    listaAuditoriaGlobal = await res.json();
+                    document.getElementById('totalOfertasAdminBadge').textContent = `${listaAuditoriaGlobal.length} Ofertas`;
+                    document.getElementById('adminOfertasContainer').innerHTML = listaAuditoriaGlobal.map(o => `
+                        <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 text-xs space-y-1">
+                            <div class="flex justify-between font-bold text-amber-400">
+                                <span>🏢 ${o.empresa} → ${o.candidato_nombre}</span>
+                            </div>
+                            <p class="text-slate-300">Vacante: ${o.vacante}</p>
+                            <p class="text-slate-400">${o.mensaje}</p>
+                        </div>
+                    `).join('');
+                }
+            } catch (e) {
+                console.error(e);
+            }
         }
 
-        async function confirmarActivacionCodigo(e) {
+        async function publicarAnuncioAdmin(e) {
             e.preventDefault();
-            const codigo = document.getElementById('codigoActivacionInput').value;
+            const titulo = document.getElementById('anuncioTitulo').value;
+            const mensaje = document.getElementById('anuncioMensaje').value;
 
             try {
-                const res = await fetch(`${API_URL}/auth/activar`, {
+                const res = await fetch(`${BASE_HOST}/api/admin/anuncios`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ correo: correoPendienteActivacion, codigo })
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userToken}` },
+                    body: JSON.stringify({ titulo, mensaje })
                 });
-                const data = await res.json();
-
-                if (!res.ok) {
-                    alert(data.detail || "Código de activación incorrecto.");
-                    return;
+                if (res.ok) {
+                    alert("Aviso publicado.");
+                    document.getElementById('anuncioTitulo').value = '';
+                    document.getElementById('anuncioMensaje').value = '';
+                    await cargarAnunciosPublicos();
                 }
-
-                alert("¡Cuenta activada con éxito! Ya puedes iniciar sesión.");
-                cerrarModalActivacion();
-                cambiarTabAuth('login');
             } catch (err) {
                 alert("Error de conexión.");
             }
+        }
+
+        async function cargarUsuariosAdmin() {
+            try {
+                const res = await fetch(`${BASE_HOST}/api/admin/usuarios`, {
+                    headers: { 'Authorization': `Bearer ${userToken}` }
+                });
+                if (res.ok) {
+                    const usuarios = await res.json();
+                    document.getElementById('adminUsuariosContainer').innerHTML = usuarios.map(u => `
+                        <div class="bg-slate-800 p-2.5 rounded-lg flex justify-between items-center text-xs border border-slate-700">
+                            <div>
+                                <p class="font-bold text-white">${u.correo}</p>
+                                <span class="text-[10px] text-slate-400">${u.verificado ? '✓ Activado' : '⏳ Pendiente'}</span>
+                            </div>
+                            <div class="flex gap-1">
+                                <button onclick="eliminarUsuarioAdmin(${u.id})" class="bg-red-600 hover:bg-red-700 text-white text-[10px] px-2 py-1 rounded">Eliminar</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function eliminarUsuarioAdmin(id) {
+            if (!confirm("¿Eliminar usuario de la base de datos?")) return;
+            try {
+                await fetch(`${BASE_HOST}/api/admin/usuarios/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${userToken}` }
+                });
+                await cargarUsuariosAdmin();
+                await cargarDirectorio();
+            } catch (e) {
+                alert("Error al eliminar.");
+            }
+        }
+
+        function exportarAExcel() {
+            if (listaFiltradaActiva.length === 0) return alert("No hay datos para exportar.");
+            let csv = "Nombre,Profesion,Universidad,Departamento,Contacto,Estudios,Labora\n";
+            listaFiltradaActiva.forEach(p => {
+                csv += `"${p.nombre || ''}","${p.profesion || p.carrera || ''}","${p.universidad || ''}","${p.departamento || ''}","${p.contacto || p.telefono || ''}","${p.estudios || ''}","${p.labora ? 'Si' : 'No'}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", "Directorio_Profesionales_UES.csv");
+            link.click();
+        }
+
+        function exportarAuditoriaExcel() {
+            if (listaAuditoriaGlobal.length === 0) return alert("No hay ofertas registradas.");
+            let csv = "Empresa,Candidato,Vacante,Mensaje,Contacto\n";
+            listaAuditoriaGlobal.forEach(o => {
+                csv += `"${o.empresa}","${o.candidato_nombre}","${o.vacante}","${o.mensaje}","${o.contacto}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", "Auditoria_Ofertas_UES.csv");
+            link.click();
         }
     </script>
 </body>

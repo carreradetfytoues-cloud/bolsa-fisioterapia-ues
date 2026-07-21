@@ -5,7 +5,7 @@ import secrets
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,53 +22,44 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# 2. CONFIGURACIÓN SMTP (Tomada de las variables de Render)
+# 2. CONFIGURACIÓN SMTP (GMAIL)
 SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 465
+SMTP_PORT = 587
 SMTP_USER = os.getenv("SMTP_USER", "carreradetfytoues@gmail.com")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "ugmwpnochguajatn")
 
 
 def enviar_correo_activacion(correo_destino: str, codigo: str) -> bool:
     if not SMTP_PASSWORD:
-        print(
-            f"⚠️ SMTP_PASSWORD no encontrada en Render. Código para {correo_destino}: {codigo}"
-        )
         return False
-
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = f"Código de Activación UES: {codigo}"
         msg["From"] = f"Bolsa de Trabajo UES <{SMTP_USER}>"
         msg["To"] = correo_destino
 
-        html_content = f"""
+        html = f"""
         <html>
         <body style="font-family: Arial, sans-serif; color: #1e293b; padding: 20px;">
             <div style="max-width: 500px; margin: auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;">
-                <h2 style="color: #4f46e5; margin-bottom: 4px;">Universidad de El Salvador</h2>
-                <p style="color: #64748b; font-size: 13px; margin-top: 0;">Plataforma Oficial de Fisioterapia y Terapia Ocupacional</p>
-                <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 16px 0;">
-                <p style="font-size: 15px;">Tu código de verificación para activar tu cuenta es:</p>
+                <h2 style="color: #4f46e5;">Universidad de El Salvador</h2>
+                <p>Tu código de verificación para activar tu cuenta es:</p>
                 <div style="background: #f1f5f9; text-align: center; padding: 16px; border-radius: 8px; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #4f46e5; margin: 16px 0;">
                     {codigo}
                 </div>
-                <p style="font-size: 12px; color: #94a3b8;">Ingresa este código en la plataforma para activar tu perfil.</p>
             </div>
         </body>
         </html>
         """
-        msg.attach(MIMEText(html_content, "html"))
-
-        # Conexión SSL segura directa (Puerto 465)
-        server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=10)
+        msg.attach(MIMEText(html, "html"))
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10)
+        server.starttls()
         server.login(SMTP_USER, SMTP_PASSWORD)
         server.sendmail(SMTP_USER, correo_destino, msg.as_string())
         server.close()
-        print(f"✅ Correo enviado exitosamente a {correo_destino}")
         return True
     except Exception as e:
-        print(f"❌ Error al enviar correo SMTP: {e}")
+        print(f"❌ Error SMTP: {e}")
         return False
 
 
@@ -80,6 +71,7 @@ class UsuarioDB(Base):
     password_hash = Column(String)
     codigo_activacion = Column(String)
     verificado = Column(Boolean, default=False)
+    es_admin = Column(Boolean, default=False)
     token = Column(String, nullable=True)
 
     profesional = relationship(
@@ -106,8 +98,29 @@ class ProfesionalDB(Base):
     empresa = Column(String, default="")
     cambio_laboral = Column(Boolean, default=False)
     experiencia = Column(String, default="")
+    verificado_ues = Column(Boolean, default=False)
 
     usuario = relationship("UsuarioDB", back_populates="profesional")
+    ofertas = relationship("OfertaDB", back_populates="profesional")
+
+
+class OfertaDB(Base):
+    __tablename__ = "ofertas"
+    id = Column(Integer, primary_key=True, index=True)
+    profesional_id = Column(Integer, ForeignKey("profesionales.id"))
+    empresa = Column(String)
+    contacto = Column(String)
+    vacante = Column(String)
+    mensaje = Column(String)
+
+    profesional = relationship("ProfesionalDB", back_populates="ofertas")
+
+
+class AnuncioDB(Base):
+    __tablename__ = "anuncios"
+    id = Column(Integer, primary_key=True, index=True)
+    titulo = Column(String)
+    mensaje = Column(String)
 
 
 Base.metadata.create_all(bind=engine)
@@ -122,7 +135,7 @@ def es_registro_completo(p: ProfesionalDB) -> bool:
     )
 
 
-# 4. APP FASTAPI
+# 4. FASTAPI APP
 app = FastAPI()
 
 app.add_middleware(
@@ -148,6 +161,19 @@ class ActivarAuth(BaseModel):
     codigo: str
 
 
+class OfertaEsquema(BaseModel):
+    profesional_id: int
+    empresa: str
+    contacto: str
+    vacante: str
+    mensaje: str
+
+
+class AnuncioEsquema(BaseModel):
+    titulo: str
+    mensaje: str
+
+
 class ProfesionalEsquema(BaseModel):
     nombre: Optional[str] = ""
     universidad: Optional[str] = ""
@@ -166,7 +192,7 @@ class ProfesionalEsquema(BaseModel):
     experiencia: Optional[str] = ""
 
 
-# 5. RUTAS DE AUTENTICACIÓN
+# 5. RUTAS AUTH
 @app.post("/api/auth/registrar")
 def registrar(datos: RegistroAuth):
     db = SessionLocal()
@@ -174,30 +200,30 @@ def registrar(datos: RegistroAuth):
         user_exist = (
             db.query(UsuarioDB).filter(UsuarioDB.correo == datos.correo).first()
         )
+        codigo_nuevo = str(random.randint(100000, 999999))
+
         if user_exist:
-            # Si el usuario ya existe pero no se ha verificado, reenviamos un nuevo código
             if not user_exist.verificado:
-                codigo_nuevo = str(random.randint(100000, 999999))
                 user_exist.codigo_activacion = codigo_nuevo
                 db.commit()
                 enviar_correo_activacion(datos.correo, codigo_nuevo)
                 return {
                     "status": "ok",
-                    "mensaje": "Se ha reenviado el código de verificación a tu correo.",
+                    "mensaje": "Se reenvió el código a tu correo.",
                 }
             raise HTTPException(
-                status_code=400,
-                detail="El correo ya existe. Ve a 'Iniciar Sesión'.",
+                status_code=400, detail="El correo ya se encuentra registrado."
             )
 
-        codigo_nuevo = str(random.randint(100000, 999999))
         pwd_h = hash_password(datos.password)
+        es_admin_user = datos.correo.endswith("@ues.edu.sv") and "admin" in datos.correo
 
         nuevo_usuario = UsuarioDB(
             correo=datos.correo,
             password_hash=pwd_h,
             codigo_activacion=codigo_nuevo,
             verificado=False,
+            es_admin=es_admin_user,
         )
         db.add(nuevo_usuario)
         db.commit()
@@ -228,7 +254,6 @@ def activar(datos: ActivarAuth):
                 status_code=400, detail="Usuario no encontrado."
             )
 
-        # Compara con el código asignado o el comodín 123456
         if user.codigo_activacion != datos.codigo and datos.codigo != "123456":
             raise HTTPException(
                 status_code=400, detail="El código ingresado es incorrecto."
@@ -236,7 +261,7 @@ def activar(datos: ActivarAuth):
 
         user.verificado = True
         db.commit()
-        return {"status": "ok", "mensaje": "Cuenta verificada con éxito."}
+        return {"status": "ok", "mensaje": "Cuenta verificada correctamente."}
     finally:
         db.close()
 
@@ -263,7 +288,7 @@ def login(datos: RegistroAuth):
         if not user.verificado:
             raise HTTPException(
                 status_code=400,
-                detail="El correo aún no está verificado. Ingresa el código recibido.",
+                detail="El correo aún no está verificado. Debes ingresar el código.",
             )
 
         token = secrets.token_hex(16)
@@ -278,15 +303,26 @@ def login(datos: RegistroAuth):
         prof_id = prof.id if prof else None
 
         return {
-            "access_token": token,
             "token": token,
+            "access_token": token,
             "profesional_id": prof_id,
+            "es_admin": user.es_admin,
         }
     finally:
         db.close()
 
 
-# 6. RUTAS DE PERFIL Y DIRECTORIO
+# 6. RUTAS DIRECTORIO Y PERFIL
+@app.get("/api/profesionales")
+def listar_profesionales():
+    db = SessionLocal()
+    try:
+        todos = db.query(ProfesionalDB).all()
+        return [p for p in todos if es_registro_completo(p)]
+    finally:
+        db.close()
+
+
 @app.get("/api/profesionales/me")
 def obtener_mi_perfil(authorization: Optional[str] = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
@@ -341,11 +377,159 @@ def actualizar_profesional(
         db.close()
 
 
-@app.get("/api/profesionales")
-def listar_profesionales():
+@app.delete("/api/profesionales/me")
+def eliminar_mi_cuenta(authorization: Optional[str] = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="No autorizado.")
+    token = authorization.split(" ")[1]
     db = SessionLocal()
     try:
-        todos = db.query(ProfesionalDB).all()
-        return [p for p in todos if es_registro_completo(p)]
+        user = db.query(UsuarioDB).filter(UsuarioDB.token == token).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="No autorizado.")
+
+        prof = (
+            db.query(ProfesionalDB)
+            .filter(ProfesionalDB.usuario_id == user.id)
+            .first()
+        )
+        if prof:
+            db.query(OfertaDB).filter(
+                OfertaDB.profesional_id == prof.id
+            ).delete()
+            db.delete(prof)
+
+        db.delete(user)
+        db.commit()
+        return {"status": "ok", "mensaje": "Cuenta eliminada."}
+    finally:
+        db.close()
+
+
+# 7. RUTAS OFERTAS Y ANUNCIOS
+@app.post("/api/ofertas")
+def crear_oferta(datos: OfertaEsquema):
+    db = SessionLocal()
+    try:
+        nueva_oferta = OfertaDB(
+            profesional_id=datos.profesional_id,
+            empresa=datos.empresa,
+            contacto=datos.contacto,
+            vacante=datos.vacante,
+            mensaje=datos.mensaje,
+        )
+        db.add(nueva_oferta)
+        db.commit()
+        return {"status": "ok", "mensaje": "Oferta enviada."}
+    finally:
+        db.close()
+
+
+@app.get("/api/ofertas/me")
+def mis_ofertas(authorization: Optional[str] = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="No autorizado.")
+    token = authorization.split(" ")[1]
+    db = SessionLocal()
+    try:
+        user = db.query(UsuarioDB).filter(UsuarioDB.token == token).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="No autorizado.")
+
+        prof = (
+            db.query(ProfesionalDB)
+            .filter(ProfesionalDB.usuario_id == user.id)
+            .first()
+        )
+        if not prof:
+            return []
+
+        return (
+            db.query(OfertaDB).filter(OfertaDB.profesional_id == prof.id).all()
+        )
+    finally:
+        db.close()
+
+
+@app.get("/api/anuncios")
+def listar_anuncios():
+    db = SessionLocal()
+    try:
+        return db.query(AnuncioDB).all()
+    finally:
+        db.close()
+
+
+# 8. RUTAS ADMINISTRADOR UES
+@app.get("/api/admin/ofertas")
+def admin_listar_ofertas(authorization: Optional[str] = Header(None)):
+    db = SessionLocal()
+    try:
+        ofertas = db.query(OfertaDB).all()
+        res = []
+        for o in ofertas:
+            prof = (
+                db.query(ProfesionalDB)
+                .filter(ProfesionalDB.id == o.profesional_id)
+                .first()
+            )
+            res.append(
+                {
+                    "empresa": o.empresa,
+                    "candidato_nombre": prof.nombre if prof else "N/A",
+                    "vacante": o.vacante,
+                    "mensaje": o.mensaje,
+                    "contacto": o.contacto,
+                }
+            )
+        return res
+    finally:
+        db.close()
+
+
+@app.post("/api/admin/anuncios")
+def admin_crear_anuncio(
+    datos: AnuncioEsquema, authorization: Optional[str] = Header(None)
+):
+    db = SessionLocal()
+    try:
+        nuevo = AnuncioDB(titulo=datos.titulo, mensaje=datos.mensaje)
+        db.add(nuevo)
+        db.commit()
+        return {"status": "ok"}
+    finally:
+        db.close()
+
+
+@app.get("/api/admin/usuarios")
+def admin_listar_usuarios(authorization: Optional[str] = Header(None)):
+    db = SessionLocal()
+    try:
+        return db.query(UsuarioDB).all()
+    finally:
+        db.close()
+
+
+@app.delete("/api/admin/usuarios/{user_id}")
+def admin_eliminar_usuario(
+    user_id: int, authorization: Optional[str] = Header(None)
+):
+    db = SessionLocal()
+    try:
+        user = db.query(UsuarioDB).filter(UsuarioDB.id == user_id).first()
+        if user:
+            prof = (
+                db.query(ProfesionalDB)
+                .filter(ProfesionalDB.usuario_id == user.id)
+                .first()
+            )
+            if prof:
+                db.query(OfertaDB).filter(
+                    OfertaDB.profesional_id == prof.id
+                ).delete()
+                db.delete(prof)
+            db.delete(user)
+            db.commit()
+        return {"status": "ok"}
     finally:
         db.close()
