@@ -412,7 +412,6 @@ async function procesarAuth(e) {
     const btn = document.getElementById('authBtn');
     const textoOriginal = authMode === 'login' ? "Entrar a mi Perfil" : "Registrar Nueva Cuenta";
 
-    // Feedback inmediato en la interfaz
     btn.disabled = true;
     btn.classList.add('opacity-75', 'cursor-not-allowed');
     btn.innerHTML = `<span class="inline-flex items-center gap-2">
@@ -466,7 +465,7 @@ async function procesarAuth(e) {
     } finally {
         btn.disabled = false;
         btn.classList.remove('opacity-75', 'cursor-not-allowed');
-        btn.textContent = textoOriginal;
+        btn.textContent = authMode === 'login' ? "Entrar a mi Perfil" : "Registrar Nueva Cuenta";
     }
 }
 
