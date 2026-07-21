@@ -373,6 +373,12 @@
             cargarDirectorio();
             cargarAnunciosPublicos();
 
+            // RECONOCIMIENTO AUTOMÁTICO DE ADMINISTRADOR
+            if (userCorreo === 'adminfisioyto@gmail.com') {
+                esAdmin = true;
+                localStorage.setItem('ues_es_admin', 'true');
+            }
+
             if (userToken && userToken !== 'null' && userToken !== 'undefined') {
                 mostrarSesionIniciadaUI(userCorreo, esAdmin);
             }
@@ -442,7 +448,14 @@
                 } else {
                     userToken = data.token || data.access_token;
                     userProfileId = data.profesional_id;
-                    esAdmin = !!data.es_admin;
+                    
+                    // FORZAR ADMINISTRADOR PARA EL CORREO OFICIAL
+                    if (correo === 'adminfisioyto@gmail.com') {
+                        esAdmin = true;
+                    } else {
+                        esAdmin = !!data.es_admin;
+                    }
+
                     userCorreo = correo;
 
                     localStorage.setItem('ues_token', userToken);
@@ -801,7 +814,6 @@
                     alert("🚀 Propuesta enviada con éxito.");
                     cerrarModalOferta();
                     
-                    // Actualiza inmediatamente la casilla de ofertas recibidas
                     await cargarMisOfertas();
                     if (esAdmin) {
                         await cargarAdminOfertas();
