@@ -177,7 +177,7 @@
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-semibold text-gray-700">WhatsApp</label>
+                            <label class="block text-sm font-semibold text-gray-700">Teléfono / WhatsApp</label>
                             <input type="text" id="telefono" placeholder="Ej: 7788-9900" class="mt-1 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                         </div>
                         <div>
@@ -316,7 +316,8 @@
                 </div>
             </div>
             
-            <div id="directory" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+            <!-- CONTENEDOR EN CUADRÍCULA DE 2 COLUMNAS -->
+            <div id="directory" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
         </section>
     </main>
 
@@ -405,7 +406,6 @@
             const password = document.getElementById('authPassword').value.trim();
             const confirmPassword = document.getElementById('authConfirmPassword') ? document.getElementById('authConfirmPassword').value.trim() : "";
 
-            // Validar contraseñas en registro
             if (authMode === 'registro') {
                 if (!password || !confirmPassword) {
                     alert("Por favor completa ambos campos de contraseña.");
@@ -419,13 +419,7 @@
 
             btn.disabled = true;
             btn.classList.add('opacity-75', 'cursor-not-allowed');
-            btn.innerHTML = `<span class="inline-flex items-center gap-2">
-                <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Procesando...
-            </span>`;
+            btn.innerHTML = `Procesando...`;
 
             const url = authMode === 'login' ? `${BASE_HOST}/api/auth/login` : `${BASE_HOST}/api/auth/registrar`;
             
@@ -443,7 +437,7 @@
                 }
                 
                 if (authMode === 'registro') {
-                    alert("🎉 ¡Cuenta creada con éxito! Ya puedes iniciar sesión con tus credenciales.");
+                    alert("🎉 ¡Cuenta creada con éxito! Ya puedes hacer clic en 'Iniciar Sesión'.");
                     cambiarTabAuth('login');
                 } else {
                     userToken = data.token || data.access_token;
@@ -474,73 +468,70 @@
                         ${adminFlag ? '🛡️ Administrador UES Logueado' : '✓ Sesión Iniciada'}
                     </p>
                     <p class="text-xs text-gray-500 font-medium truncate">${correo}</p>
-                    <button onclick="cerrarSesion()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold py-2 rounded-lg transition">
-                        Cerrar Sesión
+                    <button onclick="cerrarSesion()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold py-2 rounded-lg transition">
+                        🚪 Cerrar Sesión
                     </button>
                 </div>
             `;
 
-            // Habilitar formulario de edicion
+            // Habilitar Formulario
             const formSec = document.getElementById('formSection');
             formSec.classList.remove('opacity-40', 'pointer-events-none');
             document.getElementById('formTitle').textContent = "✏️ Edita tu Perfil Profesional";
 
-            // Mostrar ofertas
-            document.getElementById('ofertasSection').classList.remove('hidden');
-            cargarMisOfertas();
-
-            // Si es Admin, activar panel
             if (adminFlag) {
                 document.getElementById('adminPanelSection').classList.remove('hidden');
-                cargarAdminOfertas();
-                cargarAdminAnuncios();
-                cargarAdminUsuarios();
+                switchAdminTab('ofertas');
+            } else {
+                document.getElementById('ofertasSection').classList.remove('hidden');
+                cargarMisOfertas();
             }
 
-            // Cargar datos actuales del graduado
-            cargarMiPerfil();
+            cargarMiPerfilDatos();
         }
 
         function cerrarSesion() {
             localStorage.clear();
-            window.location.reload();
+            location.reload();
         }
 
-        async function cargarMiPerfil() {
+        async function cargarMiPerfilDatos() {
+            if (!userToken) return;
             try {
-                const res = await fetch(`${BASE_HOST}/api/profesionales/me`, {
+                const res = await fetch(`${API_URL}/me`, {
                     headers: { 'Authorization': `Bearer ${userToken}` }
                 });
                 if (res.ok) {
-                    const prof = await res.json();
-                    if (prof) {
-                        document.getElementById('nombre').value = prof.nombre || '';
-                        document.getElementById('universidad').value = prof.universidad || 'Universidad de El Salvador';
-                        document.getElementById('profesion').value = prof.profesion || 'Licenciado en Fisioterapia';
-                        document.getElementById('departamento').value = prof.departamento || 'San Salvador';
-                        document.getElementById('telefono').value = prof.telefono || '';
-                        document.getElementById('correo').value = prof.correo || userCorreo;
-                        document.getElementById('estudios').value = prof.estudios || '';
-                        document.getElementById('anioGraduacion').value = prof.anio_graduacion || prof.graduacion || new Date().getFullYear();
-                        document.getElementById('labora').value = prof.labora ? 'si' : 'no';
+                    const p = await res.json();
+                    if (p) {
+                        document.getElementById('nombre').value = p.nombre || '';
+                        document.getElementById('universidad').value = p.universidad || 'Universidad de El Salvador';
+                        document.getElementById('profesion').value = p.profesion || p.carrera || 'Licenciado en Fisioterapia';
+                        document.getElementById('departamento').value = p.departamento || 'San Salvador';
+                        document.getElementById('telefono').value = p.telefono || p.contacto || '';
+                        document.getElementById('correo').value = p.correo || userCorreo;
+                        document.getElementById('estudios').value = p.estudios || '';
+                        document.getElementById('anioGraduacion').value = p.anio_graduacion || p.graduacion || 2023;
+                        document.getElementById('labora').value = p.labora ? 'si' : 'no';
                         toggleEmpresa();
-                        document.getElementById('empresa').value = prof.empresa || '';
-                        document.getElementById('cambioLaboral').value = prof.cambio_laboral ? 'si' : 'no';
-                        document.getElementById('experiencia').value = prof.experiencia || '';
+                        document.getElementById('empresa').value = p.empresa || '';
+                        document.getElementById('cambioLaboral').value = p.cambio_laboral ? 'si' : 'no';
+                        document.getElementById('experiencia').value = p.experiencia || '';
                     }
                 }
             } catch (err) {
-                console.error("Error al cargar perfil personal", err);
+                console.log("Error cargando perfil propio:", err);
             }
         }
 
         async function actualizarMisDatos(e) {
             e.preventDefault();
-            const btn = document.getElementById('btnGuardarDatos');
-            btn.disabled = true;
-            btn.textContent = "Guardando cambios...";
+            if (!userToken) {
+                alert("Debes iniciar sesión.");
+                return;
+            }
 
-            const payload = {
+            const bodyData = {
                 nombre: document.getElementById('nombre').value.trim(),
                 universidad: document.getElementById('universidad').value,
                 profesion: document.getElementById('profesion').value,
@@ -550,33 +541,36 @@
                 contacto: document.getElementById('telefono').value.trim(),
                 correo: document.getElementById('correo').value.trim(),
                 estudios: document.getElementById('estudios').value.trim(),
-                anio_graduacion: parseInt(document.getElementById('anioGraduacion').value) || null,
                 graduacion: parseInt(document.getElementById('anioGraduacion').value) || null,
+                anio_graduacion: parseInt(document.getElementById('anioGraduacion').value) || null,
                 labora: document.getElementById('labora').value === 'si',
-                empresa: document.getElementById('labora').value === 'si' ? document.getElementById('empresa').value.trim() : '',
+                empresa: document.getElementById('empresa').value.trim(),
                 cambio_laboral: document.getElementById('cambioLaboral').value === 'si',
                 experiencia: document.getElementById('experiencia').value.trim()
             };
 
+            const btn = document.getElementById('btnGuardarDatos');
+            btn.disabled = true;
+            btn.textContent = "Guardando...";
+
             try {
-                const res = await fetch(`${BASE_HOST}/api/profesionales/me`, {
+                const res = await fetch(`${API_URL}/me`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${userToken}`
                     },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(bodyData)
                 });
 
                 if (res.ok) {
-                    alert("✅ ¡Perfil actualizado correctamente!");
+                    alert("🎉 ¡Datos actualizados con éxito!");
                     cargarDirectorio();
                 } else {
-                    const data = await res.json();
-                    alert(data.detail || "Error al actualizar perfil");
+                    alert("Error actualizando perfil.");
                 }
             } catch (err) {
-                alert("Error al conectar con el servidor.");
+                alert("Error de conexión al guardar.");
             } finally {
                 btn.disabled = false;
                 btn.textContent = "🔄 Actualizar mis Datos";
@@ -584,14 +578,14 @@
         }
 
         async function eliminarMiCuenta() {
-            if (!confirm("⚠️ ¿Estás seguro/a de que deseas eliminar tu cuenta y perfil por completo? Esta acción no se puede deshacer.")) return;
+            if (!confirm("⚠️ ¿Estás seguro de eliminar tu cuenta? Esta acción borrará todo tu perfil del directorio.")) return;
             try {
-                const res = await fetch(`${BASE_HOST}/api/profesionales/me`, {
+                const res = await fetch(`${API_URL}/me`, {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${userToken}` }
                 });
                 if (res.ok) {
-                    alert("Tu cuenta ha sido eliminada.");
+                    alert("Cuenta eliminada correctamente.");
                     cerrarSesion();
                 }
             } catch (err) {
@@ -600,16 +594,15 @@
         }
 
         function toggleEmpresa() {
-            const laboraVal = document.getElementById('labora').value;
-            const wrap = document.getElementById('wrapperEmpresa');
-            if (laboraVal === 'si') {
-                wrap.classList.remove('hidden');
-            } else {
-                wrap.classList.add('hidden');
-            }
+            const val = document.getElementById('labora').value;
+            const w = document.getElementById('wrapperEmpresa');
+            if (val === 'si') w.classList.remove('hidden');
+            else w.classList.add('hidden');
         }
 
-        // --- DIRECTORIO Y FILTROS ---
+        // -----------------------------------------------------------
+        // CARGAR Y RENDERIZAR DIRECTORIO (ESTILO COMPACTO 2 COLUMNAS)
+        // -----------------------------------------------------------
         async function cargarDirectorio() {
             try {
                 const res = await fetch(API_URL);
@@ -618,14 +611,86 @@
                     filtrarDirectorio();
                 }
             } catch (err) {
-                console.error("Error al cargar directorio", err);
+                console.log("Error cargando directorio:", err);
             }
+        }
+
+        function renderizarTarjeta(p) {
+            // 1. Sello Azul UES
+            const selloUES = p.verificado_ues 
+                ? `<span class="bg-blue-100 text-blue-700 text-[11px] font-bold px-2 py-0.5 rounded-full border border-blue-200 flex items-center gap-1">
+                    <span class="text-blue-600 font-extrabold">✓</span> UES
+                   </span>` 
+                : '';
+
+            // 2. Ubicación / Departamento
+            const deptoHTML = p.departamento ? `
+                <span class="bg-gray-100 text-gray-600 text-[11px] px-2 py-0.5 rounded font-medium">
+                    📍 ${p.departamento}
+                </span>
+            ` : '';
+
+            // 3. Formateo de Datos
+            const carreraTexto = p.carrera || p.profesion || "Licenciado en Fisioterapia";
+            const univTexto = p.universidad || "Universidad de El Salvador";
+            const anioTexto = (p.anio_graduacion || p.graduacion) ? `(${p.anio_graduacion || p.graduacion})` : '';
+            const estudiosTexto = p.estudios || "Sin especificar";
+            
+            let estadoTexto = "Disponible para laborar";
+            if (p.labora) {
+                estadoTexto = `Labora en ${p.empresa || 'Empresa Privada'}`;
+            }
+
+            const telefonoTexto = p.telefono || p.contacto || "No especificado";
+
+            return `
+            <div class="bg-white rounded-xl p-4 border border-gray-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-3">
+                <div>
+                    <!-- Encabezado con Nombre, Carrera y Sello UES -->
+                    <div class="flex items-start justify-between gap-2 mb-2">
+                        <div>
+                            <h3 class="font-bold text-base text-gray-900 leading-tight">${p.nombre || 'Profesional'}</h3>
+                            <p class="text-xs font-semibold text-indigo-700 mt-0.5">${carreraTexto}</p>
+                        </div>
+                        <div class="flex flex-col items-end gap-1 shrink-0">
+                            ${selloUES}
+                            ${deptoHTML}
+                        </div>
+                    </div>
+
+                    <!-- Datos principales -->
+                    <div class="space-y-1 my-2 text-xs text-gray-700">
+                        <p><span class="font-bold text-gray-800">🎓 Univ:</span> ${univTexto} ${anioTexto}</p>
+                        <p><span class="font-bold text-gray-800">📚 Estudios:</span> ${estudiosTexto}</p>
+                        <p><span class="font-bold text-gray-800">💼 Estado:</span> <span class="text-amber-800 font-medium">${estadoTexto}</span></p>
+                    </div>
+
+                    <!-- Cuadro de Experiencia -->
+                    ${p.experiencia ? `
+                        <p class="italic text-xs text-gray-600 mt-2 bg-gray-50 p-2 rounded-lg border-l-2 border-indigo-400">
+                            "${p.experiencia}"
+                        </p>
+                    ` : ''}
+                </div>
+
+                <!-- Footer de la tarjeta con Teléfono a la izquierda y Botón azul compacto a la derecha -->
+                <div class="pt-3 border-t border-gray-100 flex items-center justify-between gap-2 mt-auto">
+                    <div class="flex items-center text-xs font-semibold text-gray-700">
+                        <span class="mr-1">📞</span> ${telefonoTexto}
+                    </div>
+                    <button onclick="abrirModalOferta(${p.id}, '${(p.nombre || 'Profesional').replace(/'/g, "\\'")}')" 
+                            class="bg-indigo-900 hover:bg-indigo-950 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 shrink-0 shadow-sm">
+                        💼 Enviar Oferta
+                    </button>
+                </div>
+            </div>
+            `;
         }
 
         function filtrarDirectorio() {
             const kw = document.getElementById('searchKeyword').value.toLowerCase().trim();
             const prof = document.getElementById('filterProfesion').value;
-            const uni = document.getElementById('filterUniversidad').value;
+            const univ = document.getElementById('filterUniversidad').value;
             const dept = document.getElementById('filterDepartamento').value;
             const disp = document.getElementById('filterDisponibilidad').value;
 
@@ -635,74 +700,21 @@
                     (p.experiencia && p.experiencia.toLowerCase().includes(kw)) ||
                     (p.estudios && p.estudios.toLowerCase().includes(kw))
                 );
-
-                const matchProf = prof === 'todos' || p.profesion === prof || p.carrera === prof;
-                const matchUni = uni === 'todos' || p.universidad === uni;
+                const matchProf = prof === 'todos' || (p.profesion === prof || p.carrera === prof);
+                const matchUniv = univ === 'todos' || p.universidad === univ;
                 const matchDept = dept === 'todos' || p.departamento === dept;
-
+                
                 let matchDisp = true;
                 if (disp === 'disponible') matchDisp = !p.labora;
                 if (disp === 'laborando') matchDisp = p.labora;
                 if (disp === 'cambio') matchDisp = p.cambio_laboral;
 
-                return matchKw && matchProf && matchUni && matchDept && matchDisp;
+                return matchKw && matchProf && matchUniv && matchDept && matchDisp;
             });
 
-            renderDirectorio(listaFiltradaActiva);
-        }
-
-        function renderDirectorio(lista) {
+            document.getElementById('counter').textContent = `${listaFiltradaActiva.length} Candidatos`;
             const container = document.getElementById('directory');
-            document.getElementById('counter').textContent = `${lista.length} Candidatos`;
-            container.innerHTML = '';
-
-            if (lista.length === 0) {
-                container.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400 font-medium">No se encontraron profesionales con los filtros seleccionados.</div>`;
-                return;
-            }
-
-            lista.forEach(p => {
-                const verificado = p.verificado_ues;
-                const anio = p.anio_graduacion || p.graduacion || 'N/A';
-                
-                const card = document.createElement('div');
-                card.className = "bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between space-y-4 hover:shadow-md transition";
-                card.innerHTML = `
-                    <div class="space-y-2">
-                        <div class="flex items-start justify-between gap-2">
-                            <div>
-                                <h3 class="font-bold text-gray-900 text-base leading-snug flex items-center gap-1.5">
-                                    ${p.nombre}
-                                    ${verificado ? '<span class="text-xs bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded-full" title="Verificado UES">✓ UES</span>' : ''}
-                                </h3>
-                                <p class="text-xs font-semibold text-indigo-600">${p.profesion || p.carrera || 'Profesional'}</p>
-                            </div>
-                            <span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-1 rounded font-medium">${p.departamento || 'S/N'}</span>
-                        </div>
-
-                        <div class="text-xs text-gray-600 space-y-1">
-                            <p>🎓 <strong>Univ:</strong> ${p.universidad || 'N/A'} (${anio})</p>
-                            ${p.estudios ? `<p>📚 <strong>Estudios:</strong> ${p.estudios}</p>` : ''}
-                            <p>💼 <strong>Estado:</strong> ${p.labora ? `<span class="text-amber-600 font-medium">Labora en ${p.empresa || 'Empresa Privada'}</span>` : '<span class="text-green-600 font-medium">Disponible</span>'}</p>
-                            ${p.cambio_laboral ? '<p class="text-emerald-600 font-semibold text-[11px]">👂 Abierto/a a ofertas laborales</p>' : ''}
-                        </div>
-
-                        <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100 text-xs text-gray-700 italic">
-                            "${p.experiencia || 'Sin detalle de experiencia registrado.'}"
-                        </div>
-                    </div>
-
-                    <div class="pt-2 border-t flex items-center justify-between gap-2">
-                        <div class="text-[11px] text-gray-500">
-                            ${p.telefono ? `📞 ${p.telefono}` : ''}
-                        </div>
-                        <button onclick="abrirModalOferta(${p.id}, '${p.nombre.replace(/'/g, "\\'")}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm transition">
-                            💼 Enviar Oferta
-                        </button>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
+            container.innerHTML = listaFiltradaActiva.map(renderizarTarjeta).join('');
         }
 
         function limpiarFiltros() {
@@ -716,40 +728,25 @@
 
         function exportarAExcel() {
             if (listaFiltradaActiva.length === 0) {
-                alert("No hay datos para exportar.");
+                alert("No hay candidatos para exportar.");
                 return;
             }
-
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-            csvContent += "Nombre,Profesión,Universidad,Año Graduación,Departamento,Teléfono,Correo,Labora,Empresa,Abierto Cambio,Experiencia\n";
-
+            let csv = "Nombre,Carrera,Universidad,Año,Ubicacion,Contacto,Labora,Empresa,Experiencia\n";
             listaFiltradaActiva.forEach(p => {
-                const fila = [
-                    `"${(p.nombre || '').replace(/"/g, '""')}"`,
-                    `"${(p.profesion || '').replace(/"/g, '""')}"`,
-                    `"${(p.universidad || '').replace(/"/g, '""')}"`,
-                    `"${p.anio_graduacion || p.graduacion || ''}"`,
-                    `"${(p.departamento || '').replace(/"/g, '""')}"`,
-                    `"${(p.telefono || '').replace(/"/g, '""')}"`,
-                    `"${(p.correo || '').replace(/"/g, '""')}"`,
-                    `"${p.labora ? 'Sí' : 'No'}"`,
-                    `"${(p.empresa || '').replace(/"/g, '""')}"`,
-                    `"${p.cambio_laboral ? 'Sí' : 'No'}"`,
-                    `"${(p.experiencia || '').replace(/"/g, '""')}"`
-                ].join(",");
-                csvContent += fila + "\n";
+                csv += `"${p.nombre || ''}","${p.carrera || p.profesion || ''}","${p.universidad || ''}","${p.anio_graduacion || p.graduacion || ''}","${p.departamento || ''}","${p.contacto || p.telefono || ''}","${p.labora ? 'Si' : 'No'}","${p.empresa || ''}","${(p.experiencia || '').replace(/"/g, '""')}"\n`;
             });
-
-            const encodedUri = encodeURI(csvContent);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `directorio_graduados_ues_${new Date().toISOString().slice(0,10)}.csv`);
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", "Directorio_Profesional_UES.csv");
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
         }
 
-        // --- OFERTAS LABORALES ---
+        // -----------------------------------------------------------
+        // MODAL DE ENVIAR OFERTA LABORAL
+        // -----------------------------------------------------------
         function abrirModalOferta(profId, nombre) {
             document.getElementById('modalProfId').value = profId;
             document.getElementById('modalNombreCandidato').textContent = nombre;
@@ -763,32 +760,32 @@
 
         async function enviarOfertaLaboral(e) {
             e.preventDefault();
-            const profId = parseInt(document.getElementById('modalProfId').value);
-            const payload = {
-                profesional_id: profId,
-                empresa: document.getElementById('ofertaEmpresa').value.trim(),
-                contacto: document.getElementById('ofertaContacto').value.trim(),
-                vacante: document.getElementById('ofertaVacante').value.trim(),
-                mensaje: document.getElementById('ofertaMensaje').value.trim()
-            };
+            const profId = document.getElementById('modalProfId').value;
+            const empresa = document.getElementById('ofertaEmpresa').value.trim();
+            const contacto = document.getElementById('ofertaContacto').value.trim();
+            const vacante = document.getElementById('ofertaVacante').value.trim();
+            const mensaje = document.getElementById('ofertaMensaje').value.trim();
 
             try {
                 const res = await fetch(`${BASE_HOST}/api/ofertas`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({ profesional_id: parseInt(profId), empresa, contacto, vacante, mensaje })
                 });
                 if (res.ok) {
-                    alert("🚀 ¡Oferta laboral enviada con éxito al graduado!");
+                    alert("🚀 Propuesta enviada con éxito.");
                     cerrarModalOferta();
                 } else {
-                    alert("Error al enviar la oferta.");
+                    alert("Error enviando oferta.");
                 }
             } catch (err) {
-                alert("Error de conexión al enviar la oferta.");
+                alert("Error de conexión al enviar la propuesta.");
             }
         }
 
+        // -----------------------------------------------------------
+        // BANDEJA Y AVISOS
+        // -----------------------------------------------------------
         async function cargarMisOfertas() {
             if (!userToken) return;
             try {
@@ -799,30 +796,26 @@
                     const ofertas = await res.json();
                     document.getElementById('ofertasBadge').textContent = ofertas.length;
                     const container = document.getElementById('ofertasList');
-                    container.innerHTML = '';
-
                     if (ofertas.length === 0) {
-                        container.innerHTML = `<p class="text-xs text-gray-500 italic text-center py-2">No has recibido ofertas aún.</p>`;
+                        container.innerHTML = `<p class="text-xs text-gray-500 italic">No has recibido propuestas laborales aún.</p>`;
                         return;
                     }
-
-                    ofertas.forEach(o => {
-                        const item = document.createElement('div');
-                        item.className = "bg-white p-3 rounded-lg border border-amber-200 text-xs space-y-1 shadow-sm";
-                        item.innerHTML = `
-                            <p class="font-bold text-gray-900">${o.vacante} <span class="text-amber-600">(${o.empresa})</span></p>
+                    container.innerHTML = ofertas.map(o => `
+                        <div class="bg-white p-3 rounded-lg border border-amber-200 shadow-sm text-xs space-y-1">
+                            <div class="flex justify-between font-bold text-gray-900">
+                                <span>🏢 ${o.empresa}</span>
+                                <span class="text-indigo-600">${o.vacante}</span>
+                            </div>
                             <p class="text-gray-600">${o.mensaje}</p>
-                            <p class="text-indigo-600 font-semibold pt-1">📞 Contacto: ${o.contacto}</p>
-                        `;
-                        container.appendChild(item);
-                    });
+                            <p class="text-indigo-800 font-semibold pt-1">📞 Contacto: ${o.contacto}</p>
+                        </div>
+                    `).join('');
                 }
             } catch (err) {
-                console.error("Error al cargar ofertas recibidas", err);
+                console.log("Error cargando mis ofertas:", err);
             }
         }
 
-        // --- ANUNCIOS PUBLICOS ---
         async function cargarAnunciosPublicos() {
             try {
                 const res = await fetch(`${BASE_HOST}/api/anuncios`);
@@ -830,25 +823,22 @@
                     const anuncios = await res.json();
                     if (anuncios.length > 0) {
                         document.getElementById('anunciosSection').classList.remove('hidden');
-                        const container = document.getElementById('anunciosPublicList');
-                        container.innerHTML = '';
-                        anuncios.reverse().forEach(a => {
-                            const box = document.createElement('div');
-                            box.className = "bg-indigo-950/60 p-3 rounded-lg border border-indigo-700/50 text-xs space-y-1";
-                            box.innerHTML = `
-                                <p class="font-bold text-amber-300 text-xs">${a.titulo}</p>
-                                <p class="text-indigo-100 text-[11px] leading-relaxed">${a.mensaje}</p>
-                            `;
-                            container.appendChild(box);
-                        });
+                        document.getElementById('anunciosPublicList').innerHTML = anuncios.map(a => `
+                            <div class="bg-indigo-950 p-2.5 rounded border border-indigo-800 text-xs">
+                                <p class="font-bold text-amber-300">${a.titulo}</p>
+                                <p class="text-indigo-100 text-[11px] mt-0.5">${a.mensaje}</p>
+                            </div>
+                        `).join('');
                     }
                 }
             } catch (err) {
-                console.error("Error al cargar avisos", err);
+                console.log("Error cargando avisos:", err);
             }
         }
 
-        // --- PANEL DE ADMINISTRACIÓN ---
+        // -----------------------------------------------------------
+        // PANEL MÁSTER ADMINISTRADOR UES
+        // -----------------------------------------------------------
         function switchAdminTab(tab) {
             document.getElementById('adminSubOfertas').classList.add('hidden');
             document.getElementById('adminSubAnuncios').classList.add('hidden');
@@ -861,72 +851,57 @@
             if (tab === 'ofertas') {
                 document.getElementById('adminSubOfertas').classList.remove('hidden');
                 document.getElementById('adminTabOfertas').className = "pb-2 text-amber-400 border-b-2 border-amber-400 font-bold";
+                cargarAdminOfertas();
             } else if (tab === 'anuncios') {
                 document.getElementById('adminSubAnuncios').classList.remove('hidden');
                 document.getElementById('adminTabAnuncios').className = "pb-2 text-amber-400 border-b-2 border-amber-400 font-bold";
-            } else {
+                cargarAdminAnuncios();
+            } else if (tab === 'usuarios') {
                 document.getElementById('adminSubUsuarios').classList.remove('hidden');
                 document.getElementById('adminTabUsuarios').className = "pb-2 text-amber-400 border-b-2 border-amber-400 font-bold";
+                cargarAdminUsuarios();
             }
         }
 
         async function cargarAdminOfertas() {
             try {
-                const res = await fetch(`${BASE_HOST}/api/admin/ofertas`, {
-                    headers: { 'Authorization': `Bearer ${userToken}` }
-                });
+                const res = await fetch(`${BASE_HOST}/api/admin/ofertas`);
                 if (res.ok) {
                     listaAuditoriaGlobal = await res.json();
                     document.getElementById('totalOfertasAdminBadge').textContent = `${listaAuditoriaGlobal.length} Ofertas`;
                     const container = document.getElementById('adminOfertasContainer');
-                    container.innerHTML = '';
-
                     if (listaAuditoriaGlobal.length === 0) {
-                        container.innerHTML = `<p class="text-xs text-slate-400 italic py-2">No hay registro de ofertas.</p>`;
+                        container.innerHTML = `<p class="text-xs text-slate-400">Sin registros de auditoría.</p>`;
                         return;
                     }
-
-                    listaAuditoriaGlobal.forEach(o => {
-                        const item = document.createElement('div');
-                        item.className = "bg-slate-800 p-2.5 rounded border border-slate-700 text-xs space-y-1";
-                        item.innerHTML = `
-                            <p class="font-bold text-amber-300">${o.empresa} → <span class="text-white">${o.candidato_nombre}</span></p>
-                            <p class="text-slate-300">Vacante: ${o.vacante}</p>
-                            <p class="text-slate-400 text-[11px]">${o.mensaje}</p>
-                            <p class="text-amber-400 text-[11px]">Contacto: ${o.contacto}</p>
-                        `;
-                        container.appendChild(item);
-                    });
+                    container.innerHTML = listaAuditoriaGlobal.map(o => `
+                        <div class="bg-slate-800 p-2.5 rounded border border-slate-700 text-xs space-y-1">
+                            <div class="flex justify-between text-amber-400 font-bold">
+                                <span>🏢 ${o.empresa} ➔ Candidato: ${o.candidato_nombre}</span>
+                            </div>
+                            <p class="text-slate-300 font-medium">${o.vacante}: ${o.mensaje}</p>
+                            <p class="text-slate-400 text-[10px]">Contacto: ${o.contacto}</p>
+                        </div>
+                    `).join('');
                 }
             } catch (err) {
-                console.error("Error auditoria ofertas", err);
+                console.log("Error auditoría ofertas:", err);
             }
         }
 
         function exportarAuditoriaExcel() {
             if (listaAuditoriaGlobal.length === 0) {
-                alert("No hay ofertas para exportar.");
+                alert("Sin datos para auditoría.");
                 return;
             }
-
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-            csvContent += "Empresa,Candidato,Vacante,Mensaje,Contacto\n";
-
+            let csv = "Empresa,Candidato,Vacante,Mensaje,Contacto\n";
             listaAuditoriaGlobal.forEach(o => {
-                const fila = [
-                    `"${(o.empresa || '').replace(/"/g, '""')}"`,
-                    `"${(o.candidato_nombre || '').replace(/"/g, '""')}"`,
-                    `"${(o.vacante || '').replace(/"/g, '""')}"`,
-                    `"${(o.mensaje || '').replace(/"/g, '""')}"`,
-                    `"${(o.contacto || '').replace(/"/g, '""')}"`
-                ].join(",");
-                csvContent += fila + "\n";
+                csv += `"${o.empresa}","${o.candidato_nombre}","${o.vacante}","${(o.mensaje||'').replace(/"/g, '""')}","${o.contacto}"\n`;
             });
-
-            const encodedUri = encodeURI(csvContent);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `auditoria_ofertas_ues_${new Date().toISOString().slice(0,10)}.csv`);
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", "Auditoria_Ofertas_UES.csv");
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -934,29 +909,24 @@
 
         async function publicarAnuncioAdmin(e) {
             e.preventDefault();
-            const payload = {
-                titulo: document.getElementById('anuncioTitulo').value.trim(),
-                mensaje: document.getElementById('anuncioMensaje').value.trim()
-            };
+            const titulo = document.getElementById('anuncioTitulo').value.trim();
+            const mensaje = document.getElementById('anuncioMensaje').value.trim();
 
             try {
                 const res = await fetch(`${BASE_HOST}/api/admin/anuncios`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${userToken}`
-                    },
-                    body: JSON.stringify(payload)
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ titulo, mensaje })
                 });
                 if (res.ok) {
-                    alert("📢 Aviso publicado correctamente.");
+                    alert("📢 Aviso publicado.");
                     document.getElementById('anuncioTitulo').value = '';
                     document.getElementById('anuncioMensaje').value = '';
-                    cargarAnunciosPublicos();
                     cargarAdminAnuncios();
+                    cargarAnunciosPublicos();
                 }
             } catch (err) {
-                alert("Error al publicar el aviso.");
+                alert("Error publicando el aviso.");
             }
         }
 
@@ -965,83 +935,67 @@
                 const res = await fetch(`${BASE_HOST}/api/anuncios`);
                 if (res.ok) {
                     const anuncios = await res.json();
-                    const container = document.getElementById('adminAnunciosList');
-                    container.innerHTML = '';
-                    anuncios.forEach(a => {
-                        const item = document.createElement('div');
-                        item.className = "bg-slate-800 p-2 rounded text-xs border border-slate-700";
-                        item.innerHTML = `<strong>${a.titulo}</strong>: ${a.mensaje}`;
-                        container.appendChild(item);
-                    });
+                    document.getElementById('adminAnunciosList').innerHTML = anuncios.map(a => `
+                        <div class="bg-slate-800 p-2 rounded text-xs border border-slate-700">
+                            <p class="font-bold text-amber-300">${a.titulo}</p>
+                            <p class="text-slate-300 text-[11px]">${a.mensaje}</p>
+                        </div>
+                    `).join('');
                 }
             } catch (err) {
-                console.error("Error anuncios admin", err);
+                console.log("Error cargando anuncios admin:", err);
             }
         }
 
         async function cargarAdminUsuarios() {
             try {
-                const res = await fetch(`${BASE_HOST}/api/admin/usuarios`, {
-                    headers: { 'Authorization': `Bearer ${userToken}` }
-                });
+                const res = await fetch(`${BASE_HOST}/api/admin/usuarios`);
                 if (res.ok) {
                     const usuarios = await res.json();
-                    const container = document.getElementById('adminUsuariosContainer');
-                    container.innerHTML = '';
-
-                    usuarios.forEach(u => {
-                        const item = document.createElement('div');
-                        item.className = "bg-slate-800 p-2 rounded border border-slate-700 flex justify-between items-center text-xs gap-2";
-                        item.innerHTML = `
-                            <div class="truncate">
-                                <p class="font-bold text-slate-200 truncate">${u.correo}</p>
-                                <p class="text-[10px] text-slate-400">Verificado UES: ${u.verificado_ues ? '✅ Sí' : '❌ No'}</p>
+                    document.getElementById('adminUsuariosContainer').innerHTML = usuarios.map(u => `
+                        <div class="bg-slate-800 p-2 rounded border border-slate-700 text-xs flex justify-between items-center">
+                            <div>
+                                <p class="font-bold text-white">${u.correo}</p>
+                                <p class="text-[10px] text-slate-400">Verificado UES: ${u.verificado_ues ? 'SÍ' : 'NO'}</p>
                             </div>
-                            <div class="flex gap-1 shrink-0">
-                                <button onclick="adminToggleVerificar(${u.id})" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold px-2 py-1 rounded">
-                                    ${u.verificado_ues ? 'Quitar Sello' : 'Sello UES'}
+                            <div class="flex gap-1">
+                                <button onclick="adminToggleVerificado(${u.id})" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] px-2 py-1 rounded">
+                                    ${u.verificado_ues ? 'Quitar Sello' : 'Dar Sello UES'}
                                 </button>
-                                <button onclick="adminEliminarUsuario(${u.id})" class="bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold px-2 py-1 rounded">
-                                    🗑️
+                                <button onclick="adminEliminarUsuario(${u.id})" class="bg-red-600 hover:bg-red-700 text-white text-[10px] px-2 py-1 rounded">
+                                    Eliminar
                                 </button>
                             </div>
-                        `;
-                        container.appendChild(item);
-                    });
+                        </div>
+                    `).join('');
                 }
             } catch (err) {
-                console.error("Error gestion usuarios", err);
+                console.log("Error cargando usuarios admin:", err);
             }
         }
 
-        async function adminToggleVerificar(userId) {
+        async function adminToggleVerificado(userId) {
             try {
-                const res = await fetch(`${BASE_HOST}/api/admin/usuarios/${userId}/verificar`, {
-                    method: 'PUT',
-                    headers: { 'Authorization': `Bearer ${userToken}` }
-                });
+                const res = await fetch(`${BASE_HOST}/api/admin/usuarios/${userId}/verificar`, { method: 'PUT' });
                 if (res.ok) {
                     cargarAdminUsuarios();
                     cargarDirectorio();
                 }
             } catch (err) {
-                alert("Error al cambiar estado de verificación.");
+                alert("Error alterando verificación.");
             }
         }
 
         async function adminEliminarUsuario(userId) {
-            if (!confirm("¿Seguro que deseas eliminar a este usuario del sistema?")) return;
+            if (!confirm("¿Eliminar este usuario de la base de datos?")) return;
             try {
-                const res = await fetch(`${BASE_HOST}/api/admin/usuarios/${userId}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${userToken}` }
-                });
+                const res = await fetch(`${BASE_HOST}/api/admin/usuarios/${userId}`, { method: 'DELETE' });
                 if (res.ok) {
                     cargarAdminUsuarios();
                     cargarDirectorio();
                 }
             } catch (err) {
-                alert("Error al eliminar usuario.");
+                alert("Error eliminando usuario.");
             }
         }
     </script>
