@@ -132,12 +132,12 @@
                 <form id="professionalForm" class="space-y-4" onsubmit="actualizarMisDatos(event)">
                     <div>
                         <label class="block text-sm font-semibold text-gray-700">Nombre Completo</label>
-                        <input type="text" id="nombre" required class="mt-1 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <input type="text" id="nombre" required placeholder="Ingresa tu nombre completo" class="mt-1 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                     </div>
 
                     <div>
                         <label class="block text-sm font-semibold text-gray-700">Universidad de la que se graduó</label>
-                        <select id="universidad" required class="mt-1 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                        <select id="universidad" class="mt-1 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
                             <option value="Universidad de El Salvador">Universidad de El Salvador</option>
                             <option value="Universidad Autónoma de Santa Ana">Universidad Autónoma de Santa Ana</option>
                             <option value="Universidad extranjera">Universidad extranjera</option>
@@ -147,7 +147,7 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-semibold text-gray-700">Profesión</label>
-                            <select id="profesion" required class="mt-1 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                            <select id="profesion" class="mt-1 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
                                 <option value="Tecnologo en Fisioterapia">Tecnólogo en Fisioterapia</option>
                                 <option value="Licenciado en Fisioterapia">Licenciado en Fisioterapia</option>
                                 <option value="Licenciado en Terapia Ocupacional">Licenciado en Terapia Ocupacional</option>
@@ -156,7 +156,7 @@
                         </div>
                         <div>
                             <label class="block text-sm font-semibold text-gray-700">Ubicación (Dept.)</label>
-                            <select id="departamento" required class="mt-1 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                            <select id="departamento" class="mt-1 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
                                 <option value="Ahuachapán">Ahuachapán</option>
                                 <option value="Cabañas">Cabañas</option>
                                 <option value="Chalatenango">Chalatenango</option>
@@ -166,7 +166,7 @@
                                 <option value="La Unión">La Unión</option>
                                 <option value="Morazán">Morazán</option>
                                 <option value="San Miguel">San Miguel</option>
-                                <option value="San Salvador">San Salvador</option>
+                                <option value="San Salvador" selected>San Salvador</option>
                                 <option value="San Vicente">San Vicente</option>
                                 <option value="Santa Ana">Santa Ana</option>
                                 <option value="Sonsonate">Sonsonate</option>
@@ -194,7 +194,7 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-semibold text-gray-700">Año de Graduación</label>
-                            <input type="number" id="anioGraduacion" min="1950" max="2030" required class="mt-1 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <input type="number" id="anioGraduacion" min="1950" max="2030" placeholder="Ej: 2023" class="mt-1 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                         </div>
                         <div>
                             <label class="block text-sm font-semibold text-gray-700">¿Labora actualmente?</label>
@@ -212,7 +212,7 @@
 
                     <div>
                         <label class="block text-sm font-semibold text-gray-700">¿Estaría dispuesto/a a un cambio laboral?</label>
-                        <select id="cambioLaboral" required class="mt-1 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                        <select id="cambioLaboral" class="mt-1 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
                             <option value="no">No</option>
                             <option value="si">Sí, dispuesto/a a escuchar ofertas</option>
                         </select>
@@ -220,7 +220,7 @@
 
                     <div>
                         <label class="block text-sm font-semibold text-gray-700">Experiencia Laboral (Resumen)</label>
-                        <textarea id="experiencia" rows="3" required class="mt-1 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+                        <textarea id="experiencia" rows="3" placeholder="Resumen de tu experiencia..." class="mt-1 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
                     </div>
 
                     <div class="pt-2 space-y-3">
@@ -419,7 +419,7 @@
 
             btn.disabled = true;
             btn.classList.add('opacity-75', 'cursor-not-allowed');
-            btn.innerHTML = `Procesando...`;
+            btn.textContent = "Procesando...";
 
             const url = authMode === 'login' ? `${BASE_HOST}/api/auth/login` : `${BASE_HOST}/api/auth/registrar`;
             
@@ -437,7 +437,7 @@
                 }
                 
                 if (authMode === 'registro') {
-                    alert("🎉 ¡Cuenta creada con éxito! Ya puedes hacer clic en 'Iniciar Sesión'.");
+                    alert("🎉 ¡Cuenta creada con éxito! Haz clic en Iniciar Sesión con tus datos.");
                     cambiarTabAuth('login');
                 } else {
                     userToken = data.token || data.access_token;
@@ -511,7 +511,7 @@
                         document.getElementById('telefono').value = p.telefono || p.contacto || '';
                         document.getElementById('correo').value = p.correo || userCorreo;
                         document.getElementById('estudios').value = p.estudios || '';
-                        document.getElementById('anioGraduacion').value = p.anio_graduacion || p.graduacion || 2023;
+                        document.getElementById('anioGraduacion').value = p.anio_graduacion || p.graduacion || '';
                         document.getElementById('labora').value = p.labora ? 'si' : 'no';
                         toggleEmpresa();
                         document.getElementById('empresa').value = p.empresa || '';
@@ -527,19 +527,25 @@
         async function actualizarMisDatos(e) {
             e.preventDefault();
             if (!userToken) {
-                alert("Debes iniciar sesión.");
+                alert("⚠️ Debes iniciar sesión primero para actualizar tus datos.");
+                return;
+            }
+
+            const nombreInput = document.getElementById('nombre').value.trim();
+            if (!nombreInput) {
+                alert("⚠️ Por favor escribe tu Nombre Completo.");
                 return;
             }
 
             const bodyData = {
-                nombre: document.getElementById('nombre').value.trim(),
+                nombre: nombreInput,
                 universidad: document.getElementById('universidad').value,
                 profesion: document.getElementById('profesion').value,
                 carrera: document.getElementById('profesion').value,
                 departamento: document.getElementById('departamento').value,
                 telefono: document.getElementById('telefono').value.trim(),
                 contacto: document.getElementById('telefono').value.trim(),
-                correo: document.getElementById('correo').value.trim(),
+                correo: document.getElementById('correo').value.trim() || userCorreo,
                 estudios: document.getElementById('estudios').value.trim(),
                 graduacion: parseInt(document.getElementById('anioGraduacion').value) || null,
                 anio_graduacion: parseInt(document.getElementById('anioGraduacion').value) || null,
@@ -551,7 +557,7 @@
 
             const btn = document.getElementById('btnGuardarDatos');
             btn.disabled = true;
-            btn.textContent = "Guardando...";
+            btn.textContent = "Guardando cambios...";
 
             try {
                 const res = await fetch(`${API_URL}/me`, {
@@ -564,13 +570,15 @@
                 });
 
                 if (res.ok) {
-                    alert("🎉 ¡Datos actualizados con éxito!");
-                    cargarDirectorio();
+                    alert("🎉 ¡Datos actualizados y vinculados con éxito!");
+                    await cargarDirectorio();
+                    await cargarMisOfertas();
                 } else {
-                    alert("Error actualizando perfil.");
+                    const errData = await res.json().catch(() => ({}));
+                    alert("⚠️ Error al guardar los datos: " + (errData.detail || "Intenta nuevamente"));
                 }
             } catch (err) {
-                alert("Error de conexión al guardar.");
+                alert("❌ Error de conexión al guardar.");
             } finally {
                 btn.disabled = false;
                 btn.textContent = "🔄 Actualizar mis Datos";
@@ -601,7 +609,7 @@
         }
 
         // -----------------------------------------------------------
-        // CARGAR Y RENDERIZAR DIRECTORIO (ESTILO COMPACTO 2 COLUMNAS + 3 BOTONES)
+        // CARGAR Y RENDERIZAR DIRECTORIO
         // -----------------------------------------------------------
         async function cargarDirectorio() {
             try {
@@ -616,21 +624,18 @@
         }
 
         function renderizarTarjeta(p) {
-            // 1. Sello Azul UES
             const selloUES = p.verificado_ues 
                 ? `<span class="bg-blue-100 text-blue-700 text-[11px] font-bold px-2 py-0.5 rounded-full border border-blue-200 flex items-center gap-1">
                     <span class="text-blue-600 font-extrabold">✓</span> UES
                    </span>` 
                 : '';
 
-            // 2. Ubicación / Departamento
             const deptoHTML = p.departamento ? `
                 <span class="bg-gray-100 text-gray-600 text-[11px] px-2 py-0.5 rounded font-medium">
                     📍 ${p.departamento}
                 </span>
             ` : '';
 
-            // 3. Formateo de Datos Básicos
             const carreraTexto = p.carrera || p.profesion || "Licenciado en Fisioterapia";
             const univTexto = p.universidad || "Universidad de El Salvador";
             const anioTexto = (p.anio_graduacion || p.graduacion) ? `(${p.anio_graduacion || p.graduacion})` : '';
@@ -641,7 +646,6 @@
                 estadoTexto = `Labora en ${p.empresa || 'Empresa Privada'}`;
             }
 
-            // 4. Preparación de Enlaces de Contacto (WhatsApp / Correo)
             const telLimpio = (p.telefono || p.contacto || "").replace(/\D/g, '');
             const enlaceWhatsapp = telLimpio ? `https://wa.me/503${telLimpio}` : '#';
             const correoContacto = p.correo || userCorreo;
@@ -649,7 +653,6 @@
             return `
             <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4">
                 <div>
-                    <!-- Encabezado con Nombre, Carrera y Sello UES -->
                     <div class="flex items-start justify-between gap-2 mb-2">
                         <div>
                             <h3 class="font-bold text-base text-gray-900 leading-tight">${p.nombre || 'Profesional'}</h3>
@@ -661,14 +664,12 @@
                         </div>
                     </div>
 
-                    <!-- Información Académica y Laboral -->
                     <div class="space-y-1 my-2 text-xs text-gray-700">
                         <p><span class="font-bold text-gray-800">🎓 Univ:</span> ${univTexto} ${anioTexto}</p>
                         <p><span class="font-bold text-gray-800">📚 Estudios:</span> ${estudiosTexto}</p>
                         <p><span class="font-bold text-gray-800">💼 Estado:</span> <span class="text-amber-800 font-medium">${estadoTexto}</span></p>
                     </div>
 
-                    <!-- Resumen de Experiencia -->
                     ${p.experiencia ? `
                         <p class="italic text-xs text-gray-600 mt-2 bg-gray-50 p-2.5 rounded-lg border-l-2 border-indigo-400">
                             "${p.experiencia}"
@@ -676,7 +677,6 @@
                     ` : ''}
                 </div>
 
-                <!-- SECCIÓN DE 3 BOTONES DE CONTACTO Y OFERTA -->
                 <div class="pt-3 border-t border-gray-100 space-y-2 mt-auto">
                     <div class="grid grid-cols-2 gap-2">
                         ${telLimpio ? `
@@ -769,7 +769,7 @@
         }
 
         // -----------------------------------------------------------
-        // MODAL DE ENVIAR OFERTA LABORAL
+        // MODAL Y ENVÍO DE OFERTA LABORAL
         // -----------------------------------------------------------
         function abrirModalOferta(profId, nombre) {
             document.getElementById('modalProfId').value = profId;
@@ -782,37 +782,37 @@
             document.getElementById('formEnviarOferta').reset();
         }
 
-async function enviarOfertaLaboral(e) {
-    e.preventDefault();
-    const profId = document.getElementById('modalProfId').value;
-    const empresa = document.getElementById('ofertaEmpresa').value.trim();
-    const contacto = document.getElementById('ofertaContacto').value.trim();
-    const vacante = document.getElementById('ofertaVacante').value.trim();
-    const mensaje = document.getElementById('ofertaMensaje').value.trim();
+        async function enviarOfertaLaboral(e) {
+            e.preventDefault();
+            const profId = document.getElementById('modalProfId').value;
+            const empresa = document.getElementById('ofertaEmpresa').value.trim();
+            const contacto = document.getElementById('ofertaContacto').value.trim();
+            const vacante = document.getElementById('ofertaVacante').value.trim();
+            const mensaje = document.getElementById('ofertaMensaje').value.trim();
 
-    try {
-        const res = await fetch(`${BASE_HOST}/api/ofertas`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ profesional_id: parseInt(profId), empresa, contacto, vacante, mensaje })
-        });
-        
-        if (res.ok) {
-            alert("🚀 Propuesta enviada con éxito.");
-            cerrarModalOferta();
-            
-            // 🔄 ACTUALIZACIÓN EN TIEMPO REAL
-            cargarMisOfertas();
-            if (esAdmin) {
-                cargarAdminOfertas();
+            try {
+                const res = await fetch(`${BASE_HOST}/api/ofertas`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ profesional_id: parseInt(profId), empresa, contacto, vacante, mensaje })
+                });
+                
+                if (res.ok) {
+                    alert("🚀 Propuesta enviada con éxito.");
+                    cerrarModalOferta();
+                    
+                    // Actualiza inmediatamente la casilla de ofertas recibidas
+                    await cargarMisOfertas();
+                    if (esAdmin) {
+                        await cargarAdminOfertas();
+                    }
+                } else {
+                    alert("Error enviando oferta.");
+                }
+            } catch (err) {
+                alert("Error de conexión al enviar la propuesta.");
             }
-        } else {
-            alert("Error enviando oferta.");
         }
-    } catch (err) {
-        alert("Error de conexión al enviar la propuesta.");
-    }
-}
 
         // -----------------------------------------------------------
         // BANDEJA Y AVISOS
