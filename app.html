@@ -397,7 +397,6 @@
             const modo = params.get('modo');
 
             if (modo === 'empresas') {
-                // Ocultar columna izquierda y expandir directorio a pantalla completa
                 const colIzquierda = document.getElementById('columnaIzquierda');
                 const colDerecha = document.getElementById('columnaDerecha');
                 if (colIzquierda) colIzquierda.classList.add('hidden');
@@ -718,6 +717,12 @@
                 estadoTexto = `Labora en ${p.empresa || 'Empresa Privada'}`;
             }
 
+            // Muestra clara del teléfono y disponibilidad a cambio laboral
+            const telefonoTexto = p.telefono || p.contacto || "No registrado";
+            const cambioTexto = p.cambio_laboral 
+                ? `<span class="bg-emerald-100 text-emerald-800 text-[11px] px-2 py-0.5 rounded font-semibold border border-emerald-200">Sí (Abierto/a a propuestas)</span>` 
+                : `<span class="bg-gray-100 text-gray-600 text-[11px] px-2 py-0.5 rounded font-medium">No por el momento</span>`;
+
             const telLimpio = (p.telefono || p.contacto || "").replace(/\D/g, '');
             const enlaceWhatsapp = telLimpio ? `https://wa.me/503${telLimpio}` : '#';
             const correoContacto = p.correo || userCorreo;
@@ -736,10 +741,12 @@
                         </div>
                     </div>
 
-                    <div class="space-y-1 my-2 text-xs text-gray-700">
+                    <div class="space-y-1.5 my-2 text-xs text-gray-700">
                         <p><span class="font-bold text-gray-800">🎓 Univ:</span> ${univTexto} ${anioTexto}</p>
                         <p><span class="font-bold text-gray-800">📚 Estudios:</span> ${estudiosTexto}</p>
                         <p><span class="font-bold text-gray-800">💼 Estado:</span> <span class="text-amber-800 font-medium">${estadoTexto}</span></p>
+                        <p><span class="font-bold text-gray-800">📞 Teléfono:</span> <span class="font-semibold text-indigo-900">${telefonoTexto}</span></p>
+                        <p class="flex items-center gap-1"><span class="font-bold text-gray-800">📩 ¿Escucha ofertas?:</span> ${cambioTexto}</p>
                     </div>
 
                     ${p.experiencia ? `
@@ -827,9 +834,9 @@
                 alert("No hay candidatos para exportar.");
                 return;
             }
-            let csv = "Nombre,Carrera,Universidad,Año,Ubicacion,Contacto,Labora,Empresa,Experiencia\n";
+            let csv = "Nombre,Carrera,Universidad,Año,Ubicacion,Contacto,Labora,Empresa,Escucha Ofertas,Experiencia\n";
             listaFiltradaActiva.forEach(p => {
-                csv += `"${p.nombre || ''}","${p.carrera || p.profesion || ''}","${p.universidad || ''}","${p.anio_graduacion || p.graduacion || ''}","${p.departamento || ''}","${p.contacto || p.telefono || ''}","${p.labora ? 'Si' : 'No'}","${p.empresa || ''}","${(p.experiencia || '').replace(/"/g, '""')}"\n`;
+                csv += `"${p.nombre || ''}","${p.carrera || p.profesion || ''}","${p.universidad || ''}","${p.anio_graduacion || p.graduacion || ''}","${p.departamento || ''}","${p.contacto || p.telefono || ''}","${p.labora ? 'Si' : 'No'}","${p.empresa || ''}","${p.cambio_laboral ? 'Si' : 'No'}","${(p.experiencia || '').replace(/"/g, '""')}"\n`;
             });
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
