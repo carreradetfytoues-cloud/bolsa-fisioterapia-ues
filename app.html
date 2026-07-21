@@ -410,11 +410,15 @@
                 const data = await response.json();
                 
                 if (!response.ok) {
-                    if (data.detail && data.detail.includes("aún no está verificado")) {
+                    let errText = "Error en la operación";
+                    if (typeof data.detail === 'string') errText = data.detail;
+                    else if (Array.isArray(data.detail)) errText = data.detail.map(x => x.msg).join(", ");
+                    
+                    if (errText.includes("aún no está verificado")) {
                         correoPendienteActivacion = correo;
                         abrirModalActivacion();
                     } else {
-                        alert(data.detail || "Error en la operación");
+                        alert(errText);
                     }
                     return;
                 }
@@ -453,22 +457,27 @@
             }
         }
 
-        // FUNCIÓN PARA ACTUALIZAR DATOS SIN CERRAR SESIÓN
+        // FUNCIÓN MEJORADA PARA ACTUALIZAR DATOS CON FORMATO DE ERRORES LIMPIO
         async function actualizarMisDatos(e) {
-            e.preventDefault(); // ¡Evita que la página se recargue!
+            e.preventDefault();
 
-            if (!userToken || !userProfileId) {
+            if (!userToken) {
                 alert("Debes iniciar sesión para actualizar tus datos.");
                 return;
             }
 
+            // Si aún no hay ID de perfil asignado, enviamos petición POST para crearlo
+            const targetUrl = userProfileId 
+                ? `${API_URL}/profesionales/${userProfileId}` 
+                : `${API_URL}/profesionales`;
+            const targetMethod = userProfileId ? 'PUT' : 'POST';
+
             const payload = {
                 nombre: document.getElementById('nombre').value,
                 universidad: document.getElementById('universidad').value,
-                profesion: document.getElementById('profesion').value,
+                carrera: document.getElementById('profesion').value,
                 departamento: document.getElementById('departamento').value,
-                telefono: document.getElementById('telefono').value,
-                correo: document.getElementById('correo').value,
+                contacto: document.getElementById('telefono').value || document.getElementById('correo').value,
                 estudios: document.getElementById('estudios').value,
                 anio_graduacion: parseInt(document.getElementById('anioGraduacion').value) || null,
                 labora: document.getElementById('labora').value === 'si',
@@ -478,8 +487,8 @@
             };
 
             try {
-                const response = await fetch(`${API_URL}/profesionales/${userProfileId}`, {
-                    method: 'PUT',
+                const response = await fetch(targetUrl, {
+                    method: targetMethod,
                     headers: { 
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${userToken}`
@@ -490,14 +499,22 @@
                 const data = await response.json();
 
                 if (!response.ok) {
-                    alert(data.detail || "Error al actualizar la información.");
+                    let mensajeError = "Error al actualizar la información.";
+                    if (typeof data.detail === 'string') {
+                        mensajeError = data.detail;
+                    } else if (Array.isArray(data.detail)) {
+                        mensajeError = data.detail.map(item => `${item.loc[item.loc.length - 1]}: ${item.msg}`).join("\n");
+                    } else if (data.detail) {
+                        mensajeError = JSON.stringify(data.detail);
+                    }
+                    alert(mensajeError);
                     return;
                 }
 
-                alert("¡Tus datos se han actualizado correctamente!");
+                alert("¡Tus datos se han guardado correctamente!");
 
             } catch (err) {
-                alert("Ocurrió un error de conexión al intentar guardar los datos.");
+                alert("Ocurrió un error de conexión al guardar los datos.");
             }
         }
 
@@ -534,7 +551,8 @@
                 const data = await res.json();
 
                 if (!res.ok) {
-                    alert(data.detail || "Error al activar la cuenta");
+                    let errTxt = typeof data.detail === 'string' ? data.detail : "Error al activar la cuenta";
+                    alert(errTxt);
                     return;
                 }
 
