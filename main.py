@@ -1,12 +1,9 @@
 import hashlib
+import json
 import os
 import random
 import secrets
-import smtplib
-import socket
-import ssl
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+import urllib.request
 from typing import List, Optional
 
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException
@@ -15,77 +12,68 @@ from pydantic import BaseModel
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, create_engine
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
-# --------------------------------------------------------------------
-# 💡 PARCHE DE RED PARA RENDER (Forzar IPv4 y evitar [Errno 101])
-# --------------------------------------------------------------------
-old_getaddrinfo = socket.getaddrinfo
-
-
-def new_getaddrinfo(*args, **kwargs):
-    responses = old_getaddrinfo(*args, **kwargs)
-    ipv4_responses = [r for r in responses if r[0] == socket.AF_INET]
-    return ipv4_responses if ipv4_responses else responses
-
-
-socket.getaddrinfo = new_getaddrinfo
-# --------------------------------------------------------------------
-
-# 1. BASE DE DATOS (POSTGRESQL Y SQLITE)
+# 1. BASE DE DATOS
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()  # <--- AQUÍ SE DEFINE 'Base'
+Base = declarative_base()
 
-
-# 2. CONFIGURACIÓN SMTP (GMAIL CON SSL PUERTO 465)
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 465
-SMTP_USER = os.getenv("SMTP_USER", "carreradetfytoues@gmail.com").strip()
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").replace(" ", "").strip()
+# 2. CONFIGURACIÓN DE CORREO CON RESEND (API REST EN PUERTO WEB 443)
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "").strip()
 
 
 def enviar_correo_activacion(correo_destino: str, codigo: str) -> bool:
-    if not SMTP_PASSWORD:
-        print("❌ Error: No se detectó la variable SMTP_PASSWORD en Render.")
+    if not RESEND_API_KEY:
+        print("❌ Error: No se detectó la variable RESEND_API_KEY en Render.")
         return False
-    try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = f"Código de Activación UES: {codigo}"
-        msg["From"] = f"Bolsa de Trabajo UES <{SMTP_USER}>"
-        msg["To"] = correo_destino
 
-        html = f"""
-        <html>
-        <body style="font-family: Arial, sans-serif; color: #1e293b; padding: 20px;">
-            <div style="max-width: 500px; margin: auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;">
-                <h2 style="color: #4f46e5;">Universidad de El Salvador</h2>
-                <p>Tu código de verificación para activar tu cuenta es:</p>
-                <div style="background: #f1f5f9; text-align: center; padding: 16px; border-radius: 8px; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #4f46e5; margin: 16px 0;">
-                    {codigo}
-                </div>
+    url = "https://api.resend.com/emails"
+
+    html_content = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; color: #1e293b; padding: 20px;">
+        <div style="max-width: 500px; margin: auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;">
+            <h2 style="color: #4f46e5;">Universidad de El Salvador</h2>
+            <p>Tu código de verificación para activar tu cuenta es:</p>
+            <div style="background: #f1f5f9; text-align: center; padding: 16px; border-radius: 8px; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #4f46e5; margin: 16px 0;">
+                {codigo}
             </div>
-        </body>
-        </html>
-        """
-        msg.attach(MIMEText(html, "html"))
+        </div>
+    </body>
+    </html>
+    """
 
-        context = ssl.create_default_context()
-        context.check_hostname = False
-        context.verify_mode = ssl.CERT_NONE
+    payload = {
+        "from": "Bolsa UES <onboarding@resend.dev>",
+        "to": [correo_destino],
+        "subject": f"Código de Activación UES: {codigo}",
+        "html": html_content,
+    }
 
-        with smtplib.SMTP_SSL(
-            SMTP_SERVER, SMTP_PORT, context=context, timeout=15
-        ) as server:
-            server.login(SMTP_USER, SMTP_PASSWORD)
-            server.sendmail(SMTP_USER, correo_destino, msg.as_string())
+    try:
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={
+                "Authorization": f"Bearer {RESEND_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
 
-        print(f"✅ Correo enviado exitosamente a: {correo_destino}")
-        return True
+        with urllib.request.urlopen(req, timeout=10) as response:
+            if response.status in (200, 201):
+                print(f"✅ Correo enviado con Resend a: {correo_destino}")
+                return True
+
+        print(f"⚠️ Resend respondió con código {response.status}")
+        return False
     except Exception as e:
-        print(f"❌ Error SMTP al enviar correo a {correo_destino}: {e}")
+        print(f"❌ Error al enviar correo vía Resend: {e}")
         return False
 
 
