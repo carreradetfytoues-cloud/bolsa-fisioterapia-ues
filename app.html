@@ -829,35 +829,65 @@
         // -----------------------------------------------------------
         // BANDEJA Y AVISOS
         // -----------------------------------------------------------
-        async function cargarMisOfertas() {
-            if (!userToken) return;
-            try {
-                const res = await fetch(`${BASE_HOST}/api/ofertas/me`, {
-                    headers: { 'Authorization': `Bearer ${userToken}` }
-                });
-                if (res.ok) {
-                    const ofertas = await res.json();
-                    document.getElementById('ofertasBadge').textContent = ofertas.length;
-                    const container = document.getElementById('ofertasList');
-                    if (ofertas.length === 0) {
-                        container.innerHTML = `<p class="text-xs text-gray-500 italic">No has recibido propuestas laborales aún.</p>`;
-                        return;
-                    }
-                    container.innerHTML = ofertas.map(o => `
-                        <div class="bg-white p-3 rounded-lg border border-amber-200 shadow-sm text-xs space-y-1">
-                            <div class="flex justify-between font-bold text-gray-900">
-                                <span>🏢 ${o.empresa}</span>
-                                <span class="text-indigo-600">${o.vacante}</span>
-                            </div>
-                            <p class="text-gray-600">${o.mensaje}</p>
-                            <p class="text-indigo-800 font-semibold pt-1">📞 Contacto: ${o.contacto}</p>
-                        </div>
-                    `).join('');
-                }
-            } catch (err) {
-                console.log("Error cargando mis ofertas:", err);
-            }
+async function cargarMisOfertas() {
+    if (!userToken) return;
+    try {
+        let misOfertas = [];
+
+        // 1. Intentar consultar ofertas por ID de usuario
+        const resMe = await fetch(`${BASE_HOST}/api/ofertas/me`, {
+            headers: { 'Authorization': `Bearer ${userToken}` }
+        });
+        if (resMe.ok) {
+            misOfertas = await resMe.json();
         }
+
+        // 2. Buscar también por coincidencia de Nombre Completo
+        const miNombreInput = document.getElementById('nombre') ? document.getElementById('nombre').value.trim().toLowerCase() : '';
+        
+        const resAll = await fetch(`${BASE_HOST}/api/admin/ofertas`);
+        if (resAll.ok) {
+            const todasLasOfertas = await resAll.json();
+            
+            // Filtrar las ofertas que coincidan con el nombre del graduado logueado
+            const ofertasPorNombre = todasLasOfertas.filter(o => {
+                const candNombre = (o.candidato_nombre || '').toLowerCase();
+                return miNombreInput && candNombre.includes(miNombreInput);
+            });
+
+            // Combinar los resultados sin duplicar
+            const idsExistentes = new Set(misOfertas.map(o => o.id));
+            ofertasPorNombre.forEach(o => {
+                if (!idsExistentes.has(o.id)) {
+                    misOfertas.push(o);
+                }
+            });
+        }
+
+        // 3. Mostrar los resultados en la caja amarilla
+        document.getElementById('ofertasBadge').textContent = misOfertas.length;
+        const container = document.getElementById('ofertasList');
+        
+        if (misOfertas.length === 0) {
+            container.innerHTML = `<p class="text-xs text-gray-500 italic">No has recibido propuestas laborales aún.</p>`;
+            return;
+        }
+
+        container.innerHTML = misOfertas.map(o => `
+            <div class="bg-white p-3 rounded-lg border border-amber-200 shadow-sm text-xs space-y-1">
+                <div class="flex justify-between font-bold text-gray-900">
+                    <span>🏢 ${o.empresa}</span>
+                    <span class="text-indigo-600 font-semibold">${o.vacante || 'Oferta Laboral'}</span>
+                </div>
+                <p class="text-gray-600">${o.mensaje}</p>
+                <p class="text-indigo-800 font-semibold pt-1">📞 Contacto: ${o.contacto}</p>
+            </div>
+        `).join('');
+
+    } catch (err) {
+        console.log("Error cargando mis ofertas:", err);
+    }
+}
 
         async function cargarAnunciosPublicos() {
             try {
