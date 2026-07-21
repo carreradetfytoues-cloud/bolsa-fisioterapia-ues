@@ -369,14 +369,20 @@
     <script>
         const API_URL = "https://bolsa-fisioterapia-ues.onrender.com/api";
         let listaGlobalProfesionales = [];
-        let listaFiltradaActiva = [];
-        let listaAuditoriaGlobal = [];
-        
-        let userToken = null;
-        let userProfileId = null;
-        let esAdmin = false;
         let authMode = 'login'; 
         let correoPendienteActivacion = "";
+
+        // RECUPERAR SESIÓN DESDE LOCALSTORAGE AL CARGAR
+        let userToken = localStorage.getItem('ues_token');
+        let userProfileId = localStorage.getItem('ues_profesional_id');
+        let userCorreo = localStorage.getItem('ues_correo');
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (userToken) {
+                mostrarEstadoSesion(userCorreo);
+                cargarPerfilPropio();
+            }
+        });
 
         function cambiarTabAuth(mode) {
             authMode = mode;
@@ -427,40 +433,85 @@
                     correoPendienteActivacion = correo;
                     abrirModalActivacion();
                 } else {
-                    // CAPTURA FLEXIBLE DEL TOKEN Y DEL ID DE PERFIL
+                    // GUARDAR TOKEN E ID DE PERFIL PERMANENTEMENTE
                     userToken = data.access_token || data.token || data.jwt;
                     userProfileId = data.profesional_id || data.id || data.user_id;
-                    esAdmin = data.es_admin || false;
-                    
-                    document.getElementById('authBox').innerHTML = `
-                        <div class="text-center py-2">
-                            <p class="text-sm ${esAdmin ? 'text-amber-500' : 'text-green-600'} font-bold">
-                                ${esAdmin ? '🛡️ Administrador UES Logueado' : '✓ Sesión Iniciada'}
-                            </p>
-                            <p class="text-xs text-gray-500 mb-2">${correo}</p>
-                            <button onclick="location.reload()" class="text-xs text-red-500 underline font-semibold">Cerrar Sesión</button>
-                        </div>
-                    `;
+                    userCorreo = correo;
 
-                    if (esAdmin) {
-                        document.getElementById('adminPanelSection').classList.remove('hidden');
-                        document.getElementById('formSection').classList.add('hidden');
-                        if (typeof cargarAuditoriaAdmin === 'function') await cargarAuditoriaAdmin();
-                    } else {
-                        document.getElementById('formSection').classList.remove('opacity-40', 'pointer-events-none');
-                        document.getElementById('formTitle').textContent = "Modificar mis Datos Profesionales";
-                        if (typeof cargarPerfilPropio === 'function') await cargarPerfilPropio();
-                        if (typeof cargarMisOfertas === 'function') await cargarMisOfertas();
-                    }
+                    localStorage.setItem('ues_token', userToken);
+                    if (userProfileId) localStorage.setItem('ues_profesional_id', userProfileId);
+                    localStorage.setItem('ues_correo', correo);
+                    
+                    mostrarEstadoSesion(correo);
+                    await cargarPerfilPropio();
                 }
             } catch (err) {
                 alert("Error de conexión al servidor.");
             }
         }
 
-        // FUNCIÓN DE ACTUALIZACIÓN DE DATOS CON CABECERA DE AUTORIZACIÓN VÁLIDA
+        function mostrarEstadoSesion(correo) {
+            document.getElementById('authBox').innerHTML = `
+                <div class="text-center py-2">
+                    <p class="text-sm text-green-600 font-bold">✓ Sesión Iniciada</p>
+                    <p class="text-xs text-gray-500 mb-2">${correo || ''}</p>
+                    <button onclick="cerrarSesion()" class="text-xs text-red-500 underline font-semibold">Cerrar Sesión</button>
+                </div>
+            `;
+            document.getElementById('formSection').classList.remove('opacity-40', 'pointer-events-none');
+            document.getElementById('formTitle').textContent = "Modificar mis Datos Profesionales";
+        }
+
+        function cerrarSesion() {
+            localStorage.clear();
+            location.reload();
+        }
+
+        // CARGAR LOS DATOS ACTUALES DEL USUARIO EN EL FORMULARIO
+        async function cargarPerfilPropio() {
+            if (!userToken) return;
+
+            try {
+                const res = await fetch(`${API_URL}/profesionales/me`, {
+                    headers: { 'Authorization': `Bearer ${userToken}` }
+                });
+
+                if (res.ok) {
+                    const profile = await res.json();
+                    if (profile.id) {
+                        userProfileId = profile.id;
+                        localStorage.setItem('ues_profesional_id', profile.id);
+                    }
+                    if (profile.nombre) document.getElementById('nombre').value = profile.nombre;
+                    if (profile.universidad) document.getElementById('universidad').value = profile.universidad;
+                    if (profile.profesion || profile.carrera) document.getElementById('profesion').value = profile.profesion || profile.carrera;
+                    if (profile.departamento) document.getElementById('departamento').value = profile.departamento;
+                    if (profile.telefono) document.getElementById('telefono').value = profile.telefono;
+                    if (profile.correo) document.getElementById('correo').value = profile.correo;
+                    if (profile.estudios) document.getElementById('estudios').value = profile.estudios;
+                    if (profile.graduacion || profile.anio_graduacion) document.getElementById('anioGraduacion').value = profile.graduacion || profile.anio_graduacion;
+                    if (profile.labora !== undefined) {
+                        document.getElementById('labora').value = profile.labora ? 'si' : 'no';
+                        toggleEmpresa();
+                    }
+                    if (profile.empresa) document.getElementById('empresa').value = profile.empresa;
+                    if (profile.cambio_laboral !== undefined) document.getElementById('cambioLaboral').value = profile.cambio_laboral ? 'si' : 'no';
+                    if (profile.experiencia) document.getElementById('experiencia').value = profile.experiencia;
+                }
+            } catch (e) {
+                console.log("Servidor iniciando...");
+            }
+        }
+
+        // ACTUALIZAR DATOS CON AUTENTICACIÓN SEGURA
         async function actualizarMisDatos(e) {
             e.preventDefault();
+
+            if (!userToken) {
+                alert("Tu sesión ha caducado. Por favor, vuelve a iniciar sesión con tu correo y contraseña.");
+                cerrarSesion();
+                return;
+            }
 
             const targetUrl = userProfileId 
                 ? `${API_URL}/profesionales/${userProfileId}` 
@@ -485,17 +536,21 @@
                 experiencia: document.getElementById('experiencia').value
             };
 
-            const headers = { 'Content-Type': 'application/json' };
-            if (userToken) {
-                headers['Authorization'] = `Bearer ${userToken}`;
-            }
-
             try {
                 const response = await fetch(targetUrl, {
                     method: targetMethod,
-                    headers: headers,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${userToken}`
+                    },
                     body: JSON.stringify(payload)
                 });
+
+                if (response.status === 401) {
+                    alert("Tu clave de sesión venció. Por favor vuelve a Iniciar Sesión para renovar tu acceso.");
+                    cerrarSesion();
+                    return;
+                }
 
                 const data = await response.json();
 
@@ -505,17 +560,15 @@
                         mensajeError = data.detail;
                     } else if (Array.isArray(data.detail)) {
                         mensajeError = data.detail.map(item => `${item.loc[item.loc.length - 1]}: ${item.msg}`).join("\n");
-                    } else if (data.detail) {
-                        mensajeError = JSON.stringify(data.detail);
                     }
                     alert(mensajeError);
                     return;
                 }
 
-                alert("¡Tus datos se han guardado correctamente!");
+                alert("¡Tus datos se han guardado exitosamente!");
 
             } catch (err) {
-                alert("Ocurrió un error de conexión al guardar los datos.");
+                alert("Error de conexión al servidor.");
             }
         }
 
