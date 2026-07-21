@@ -1,18 +1,18 @@
 import hashlib
-import json
 import os
 import random
 import secrets
-import urllib.request
 from typing import List, Optional
 
-from fastapi import BackgroundTasks, FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, create_engine
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
-# 1. BASE DE DATOS
+# --------------------------------------------------------------------
+# 1. BASE DE DATOS (COMPATIBLE CON POSTGRESQL EN RENDER Y SQLITE LOCAL)
+# --------------------------------------------------------------------
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
@@ -21,70 +21,17 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# 2. CONFIGURACIÓN DE CORREO CON RESEND (API REST EN PUERTO WEB 443)
-RESEND_API_KEY = os.getenv("RESEND_API_KEY", "").strip()
 
-
-def enviar_correo_activacion(correo_destino: str, codigo: str) -> bool:
-    if not RESEND_API_KEY:
-        print("❌ Error: No se detectó la variable RESEND_API_KEY en Render.")
-        return False
-
-    url = "https://api.resend.com/emails"
-
-    html_content = f"""
-    <html>
-    <body style="font-family: Arial, sans-serif; color: #1e293b; padding: 20px;">
-        <div style="max-width: 500px; margin: auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;">
-            <h2 style="color: #4f46e5;">Universidad de El Salvador</h2>
-            <p>Tu código de verificación para activar tu cuenta es:</p>
-            <div style="background: #f1f5f9; text-align: center; padding: 16px; border-radius: 8px; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #4f46e5; margin: 16px 0;">
-                {codigo}
-            </div>
-        </div>
-    </body>
-    </html>
-    """
-
-    payload = {
-        "from": "Bolsa UES <onboarding@resend.dev>",
-        "to": [correo_destino],
-        "subject": f"Código de Activación UES: {codigo}",
-        "html": html_content,
-    }
-
-    try:
-        data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
-            url,
-            data=data,
-            headers={
-                "Authorization": f"Bearer {RESEND_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            method="POST",
-        )
-
-        with urllib.request.urlopen(req, timeout=10) as response:
-            if response.status in (200, 201):
-                print(f"✅ Correo enviado con Resend a: {correo_destino}")
-                return True
-
-        print(f"⚠️ Resend respondió con código {response.status}")
-        return False
-    except Exception as e:
-        print(f"❌ Error al enviar correo vía Resend: {e}")
-        return False
-
-
-# 3. MODELOS SQLALCHEMY
+# --------------------------------------------------------------------
+# 2. MODELOS SQLALCHEMY
+# --------------------------------------------------------------------
 class UsuarioDB(Base):
     __tablename__ = "usuarios"
     id = Column(Integer, primary_key=True, index=True)
     correo = Column(String, unique=True, index=True)
     password_hash = Column(String)
-    codigo_activacion = Column(String)
-    verificado = Column(Boolean, default=False)
+    codigo_activacion = Column(String, default="123456")
+    verificado = Column(Boolean, default=True)  # Auto-activado por defecto
     es_admin = Column(Boolean, default=False)
     token = Column(String, nullable=True)
 
@@ -149,7 +96,9 @@ def es_registro_completo(p: ProfesionalDB) -> bool:
     )
 
 
-# 4. FASTAPI APP
+# --------------------------------------------------------------------
+# 3. FASTAPI APP & MIDDLEWARE
+# --------------------------------------------------------------------
 app = FastAPI()
 
 app.add_middleware(
@@ -165,6 +114,7 @@ def hash_password(password: str) -> str:
     return hashlib.sha256(password.strip().encode()).hexdigest()
 
 
+# ESQUEMAS PYDANTIC
 class RegistroAuth(BaseModel):
     correo: str
     password: str
@@ -206,9 +156,11 @@ class ProfesionalEsquema(BaseModel):
     experiencia: Optional[str] = ""
 
 
-# 5. RUTAS AUTH
+# --------------------------------------------------------------------
+# 4. RUTAS AUTH (AUTO-ACTIVACIÓN DIRECTA)
+# --------------------------------------------------------------------
 @app.post("/api/auth/registrar")
-def registrar(datos: RegistroAuth, background_tasks: BackgroundTasks):
+def registrar(datos: RegistroAuth):
     db = SessionLocal()
     try:
         correo_norm = datos.correo.strip().lower()
@@ -217,20 +169,8 @@ def registrar(datos: RegistroAuth, background_tasks: BackgroundTasks):
         user_exist = (
             db.query(UsuarioDB).filter(UsuarioDB.correo == correo_norm).first()
         )
-        codigo_nuevo = str(random.randint(100000, 999999))
 
         if user_exist:
-            if not user_exist.verificado:
-                user_exist.codigo_activacion = codigo_nuevo
-                user_exist.password_hash = hash_password(pass_norm)
-                db.commit()
-                background_tasks.add_task(
-                    enviar_correo_activacion, correo_norm, codigo_nuevo
-                )
-                return {
-                    "status": "ok",
-                    "mensaje": "Se reenvió el código a tu correo.",
-                }
             raise HTTPException(
                 status_code=400, detail="El correo ya se encuentra registrado."
             )
@@ -240,11 +180,12 @@ def registrar(datos: RegistroAuth, background_tasks: BackgroundTasks):
             correo_norm.endswith("@ues.edu.sv") and "admin" in correo_norm
         )
 
+        # Se registra la cuenta directamente verificada
         nuevo_usuario = UsuarioDB(
             correo=correo_norm,
             password_hash=pwd_h,
-            codigo_activacion=codigo_nuevo,
-            verificado=False,
+            codigo_activacion="123456",
+            verificado=True,  # <--- Activación instantánea
             es_admin=es_admin_user,
         )
         db.add(nuevo_usuario)
@@ -256,13 +197,9 @@ def registrar(datos: RegistroAuth, background_tasks: BackgroundTasks):
         db.add(nuevo_prof)
         db.commit()
 
-        background_tasks.add_task(
-            enviar_correo_activacion, correo_norm, codigo_nuevo
-        )
-
         return {
             "status": "ok",
-            "mensaje": "Se envió un código de verificación a tu correo.",
+            "mensaje": "¡Cuenta creada con éxito! Ya puedes iniciar sesión.",
         }
     finally:
         db.close()
@@ -279,11 +216,6 @@ def activar(datos: ActivarAuth):
         if not user:
             raise HTTPException(
                 status_code=400, detail="Usuario no encontrado."
-            )
-
-        if user.codigo_activacion != codigo_norm and codigo_norm != "123456":
-            raise HTTPException(
-                status_code=400, detail="El código ingresado es incorrecto."
             )
 
         user.verificado = True
@@ -316,10 +248,8 @@ def login(datos: RegistroAuth):
             )
 
         if not user.verificado:
-            raise HTTPException(
-                status_code=400,
-                detail="El correo aún no está verificado. Debes ingresar el código.",
-            )
+            user.verificado = True
+            db.commit()
 
         token = secrets.token_hex(16)
         user.token = token
@@ -342,7 +272,9 @@ def login(datos: RegistroAuth):
         db.close()
 
 
-# 6. RUTAS DIRECTORIO Y PERFIL
+# --------------------------------------------------------------------
+# 5. RUTAS DIRECTORIO Y PERFIL
+# --------------------------------------------------------------------
 @app.get("/api/profesionales")
 def listar_profesionales():
     db = SessionLocal()
@@ -454,7 +386,9 @@ def eliminar_mi_cuenta(authorization: Optional[str] = Header(None)):
         db.close()
 
 
-# 7. RUTAS OFERTAS Y ANUNCIOS
+# --------------------------------------------------------------------
+# 6. RUTAS OFERTAS Y ANUNCIOS
+# --------------------------------------------------------------------
 @app.post("/api/ofertas")
 def crear_oferta(datos: OfertaEsquema):
     db = SessionLocal()
@@ -508,7 +442,9 @@ def listar_anuncios():
         db.close()
 
 
-# 8. RUTAS ADMINISTRADOR UES
+# --------------------------------------------------------------------
+# 7. RUTAS ADMINISTRADOR UES
+# --------------------------------------------------------------------
 @app.get("/api/admin/ofertas")
 def admin_listar_ofertas(authorization: Optional[str] = Header(None)):
     db = SessionLocal()
